@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
+import AdBanner from '../components/AdBanner';
 import { motion, AnimatePresence } from 'motion/react';
 import { ExternalLink, Calendar, Search, Image as ImageIcon, Grid, List } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
@@ -17,6 +18,7 @@ interface Event {
   date: string;
   coverImage: string;
   googleDriveLink?: string;
+  category?: string;
 }
 
 export default function Gallery() {
@@ -25,6 +27,8 @@ export default function Gallery() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedYear, setSelectedYear] = useState<string>('Semua Tahun');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Semua Kategori');
 
   useEffect(() => {
     const q = query(collection(db, 'events'), orderBy('date', sortBy === 'newest' ? 'desc' : 'asc'));
@@ -43,9 +47,15 @@ export default function Gallery() {
     return () => unsubscribe();
   }, []);
 
-  const filteredEvents = events.filter(event =>
-    event.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const years = ['Semua Tahun', ...new Set(events.map(event => new Date(event.date).getFullYear().toString()))].sort((a, b) => b.localeCompare(a));
+  const categories = ['Semua Kategori', ...new Set(events.map(event => event.category || 'Kegiatan'))].sort();
+
+  const filteredEvents = events.filter(event => {
+    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesYear = selectedYear === 'Semua Tahun' || new Date(event.date).getFullYear().toString() === selectedYear;
+    const matchesCategory = selectedCategory === 'Semua Kategori' || (event.category || 'Kegiatan') === selectedCategory;
+    return matchesSearch && matchesYear && matchesCategory;
+  });
 
   return (
     <motion.div 
@@ -72,47 +82,86 @@ export default function Gallery() {
         </header>
 
         {/* Search & Filter Bar */}
-        <div className="max-w-5xl mx-auto mb-16 flex flex-col md:flex-row gap-4 items-center">
-          <div className="relative flex-grow group w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 group-focus-within:text-accent transition-colors" />
-            <input
-              type="text"
-              placeholder="Cari nama acara..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 pl-12 pr-6 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-            />
-          </div>
-          
-          <div className="flex gap-4 w-full md:w-auto">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
-              className="flex-grow md:flex-grow-0 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 px-6 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold"
-            >
-              <option value="newest">Terbaru</option>
-              <option value="oldest">Terlama</option>
-            </select>
+        <div className="max-w-6xl mx-auto mb-16 space-y-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="relative flex-grow group w-full">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 group-focus-within:text-accent transition-colors" />
+              <input
+                type="text"
+                placeholder="Cari nama acara..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 pl-12 pr-6 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+              />
+            </div>
+            
+            <div className="flex gap-4 w-full md:w-auto">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
+                className="flex-grow md:flex-grow-0 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 px-6 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold"
+              >
+                <option value="newest">Terbaru</option>
+                <option value="oldest">Terlama</option>
+              </select>
 
-            <div className="flex bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={cn(
-                  "p-3 rounded-xl transition-all",
-                  viewMode === 'grid' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                )}
-              >
-                <Grid className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={cn(
-                  "p-3 rounded-xl transition-all",
-                  viewMode === 'list' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                )}
-              >
-                <List className="w-5 h-5" />
-              </button>
+              <div className="flex bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    "p-3 rounded-xl transition-all",
+                    viewMode === 'grid' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                  )}
+                >
+                  <Grid className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    "p-3 rounded-xl transition-all",
+                    viewMode === 'list' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                  )}
+                >
+                  <List className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Year & Category Filters */}
+          <div className="flex flex-wrap gap-3 justify-center">
+            <div className="flex gap-2 p-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-x-auto custom-scrollbar-hide max-w-full">
+              {years.map((year) => (
+                <button
+                  key={year}
+                  onClick={() => setSelectedYear(year)}
+                  className={cn(
+                    "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+                    selectedYear === year 
+                      ? "bg-accent text-white shadow-lg shadow-accent/20" 
+                      : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                  )}
+                >
+                  {year}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2 p-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-x-auto custom-scrollbar-hide max-w-full">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={cn(
+                    "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+                    selectedCategory === cat 
+                      ? "bg-accent text-white shadow-lg shadow-accent/20" 
+                      : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -122,22 +171,25 @@ export default function Gallery() {
             <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
             <p className="text-zinc-500 font-medium">Memuat galeri...</p>
           </div>
-        ) : filteredEvents.length > 0 ? (
-          <div className={cn(
-            "grid gap-8",
-            viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-          )}>
-            {filteredEvents.map((event, index) => (
+        ) : (
+          <div 
+            className={cn(
+              "grid gap-8",
+              viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+            )}
+          >
+            {filteredEvents.map((event) => (
               <motion.div
                 key={event.id}
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  visible: { opacity: 1, y: 0 }
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ 
+                  duration: 0.3,
+                  ease: "easeOut"
                 }}
+                whileHover={{ y: -5 }}
                 className={cn(
-                  "group bg-white dark:bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-zinc-200 dark:border-zinc-800 hover:border-accent/30 transition-all relative",
+                  "group bg-white dark:bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-zinc-200 dark:border-zinc-800 hover:border-accent/30 transition-all relative shadow-lg hover:shadow-2xl",
                   viewMode === 'grid' ? "aspect-[4/5]" : "flex flex-row h-auto md:h-64 items-center md:items-stretch"
                 )}
               >
@@ -241,16 +293,19 @@ export default function Gallery() {
               </motion.div>
             ))}
           </div>
-        ) : (
-          <div className="text-center py-20">
-            <div className="bg-zinc-900 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ImageIcon className="w-10 h-10 text-zinc-700" />
-            </div>
-            <h3 className="text-xl font-bold mb-2">Tidak ada hasil</h3>
-            <p className="text-zinc-500">Coba gunakan kata kunci pencarian yang lain.</p>
+      )}
+
+      {!loading && filteredEvents.length === 0 && (
+        <div className="text-center py-20">
+          <div className="bg-zinc-50 dark:bg-zinc-900 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <ImageIcon className="w-10 h-10 text-zinc-300 dark:text-zinc-700" />
           </div>
-        )}
-      </div>
-    </motion.div>
+          <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white">Tidak ada hasil</h3>
+          <p className="text-zinc-500">Coba gunakan kata kunci pencarian yang lain.</p>
+        </div>
+      )}
+      <AdBanner />
+    </div>
+  </motion.div>
   );
 }

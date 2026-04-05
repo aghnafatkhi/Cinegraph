@@ -47,6 +47,8 @@ interface Member {
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<'events' | 'projects' | 'members'>('events');
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [user, setUser] = useState(auth.currentUser);
   const [events, setEvents] = useState<Event[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -58,12 +60,13 @@ export default function Admin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchInput, setBatchInput] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState<{ collection: string, id: string, all?: boolean } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ collection: string, id: string } | null>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [dragActive, setDragActive] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
   const [featuredPhotosPreview, setFeaturedPhotosPreview] = useState<string[]>([]);
   const [portfolioItems, setPortfolioItems] = useState<{ id: string, title: string, link: string, thumbnailUrl?: string, votes?: number }[]>([]);
+  const [memberSkills, setMemberSkills] = useState<string[]>([]);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [featuredPhotosDragActive, setFeaturedPhotosDragActive] = useState(false);
 
@@ -72,30 +75,50 @@ export default function Admin() {
       setPreviewUrl(editingItem.coverImage || editingItem.thumbnailUrl || editingItem.photoUrl || '');
       setFeaturedPhotosPreview(editingItem.featuredPhotos || []);
       setPortfolioItems(editingItem.portfolio || []);
+      setMemberSkills(editingItem.skills || []);
     } else {
       setPreviewUrl('');
       setFeaturedPhotosPreview([]);
       setPortfolioItems([]);
+      setMemberSkills([]);
     }
   }, [editingItem]);
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((u) => {
       if (!u || u.email !== 'aghna1011@gmail.com') {
-        navigate('/login');
-        return;
+        if (!authLoading) {
+          navigate('/login');
+        }
+      } else {
+        setUser(u);
       }
-      setUser(u);
+      setAuthLoading(false);
     });
+
+    return () => unsubscribeAuth();
+  }, [navigate, authLoading]);
+
+  useEffect(() => {
+    if (authLoading || !user || user.email !== 'aghna1011@gmail.com') return;
+
+    setLoading(true);
 
     // Fetch Data
     const unsubEvents = onSnapshot(query(collection(db, 'events'), orderBy('date', 'desc')), (snap) => {
       setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Event[]);
-    }, (error) => console.error("Error fetching events:", error));
+    }, (error) => {
+      console.error("Error fetching events:", error);
+      if (error.message.includes('insufficient permissions')) {
+        setMessage({ type: 'error', text: 'Izin ditolak saat mengambil data acara.' });
+      }
+    });
 
     const unsubProjects = onSnapshot(query(collection(db, 'projects'), orderBy('title', 'asc')), (snap) => {
       setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Project[]);
-    }, (error) => console.error("Error fetching projects:", error));
+    }, (error) => {
+      console.error("Error fetching projects:", error);
+    });
 
     const unsubMembers = onSnapshot(collection(db, 'members'), (snap) => {
       setMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Member[]);
@@ -106,12 +129,11 @@ export default function Admin() {
     });
 
     return () => {
-      unsubscribeAuth();
       unsubEvents();
       unsubProjects();
       unsubMembers();
     };
-  }, [navigate]);
+  }, [user, authLoading]);
 
   const handleDelete = async () => {
     if (!deleteConfirm) return;
@@ -130,6 +152,11 @@ export default function Admin() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    
+    setSaving(true);
+    setMessage(null);
+
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     const data: any = {};
     formData.forEach((value, key) => {
@@ -137,21 +164,40 @@ export default function Admin() {
     });
 
     // Ensure image URL is from preview if drag-and-dropped
-    if (activeTab === 'events') data.coverImage = previewUrl;
-    if (activeTab === 'projects') data.thumbnailUrl = previewUrl;
+    if (activeTab === 'events') {
+      data.coverImage = previewUrl;
+      // Ensure optional fields are handled correctly for rules
+      if (!data.googleDriveLink) data.googleDriveLink = "";
+      if (!data.description) data.description = "";
+    }
+    if (activeTab === 'projects') {
+      data.thumbnailUrl = previewUrl;
+      if (!data.description) data.description = "";
+      if (!data.category) data.category = "";
+    }
     if (activeTab === 'members') {
       data.photoUrl = previewUrl;
       data.featuredPhotos = featuredPhotosPreview;
       data.portfolio = portfolioItems;
+      data.skills = memberSkills;
+      if (!data.bio) data.bio = "";
+      if (!data.kelas) data.kelas = "";
+      if (!data.instagram) data.instagram = "";
+      if (!data.phone) data.phone = "";
+      if (!data.tiktok) data.tiktok = "";
+      if (!data.youtube) data.youtube = "";
+      if (!data.joinYear) data.joinYear = "";
+      if (!data.favoriteGear) data.favoriteGear = "";
     }
 
     if (!previewUrl) {
       setMessage({ type: 'error', text: 'Gambar/Foto wajib diisi!' });
-      setTimeout(() => setMessage(null), 5000);
+      setSaving(false);
       return;
     }
 
     try {
+      console.log(`Saving to ${activeTab}:`, data);
       if (editingItem) {
         await updateDoc(doc(db, activeTab, editingItem.id), data);
         setMessage({ type: 'success', text: 'Berhasil diperbarui!' });
@@ -163,8 +209,15 @@ export default function Admin() {
       setEditingItem(null);
       setTimeout(() => setMessage(null), 3000);
     } catch (err: any) {
-      setMessage({ type: 'error', text: 'Gagal menyimpan: ' + err.message });
+      console.error("Error saving data:", err);
+      let errorText = 'Gagal menyimpan: ' + err.message;
+      if (err.message.includes('insufficient permissions')) {
+        errorText = 'Gagal menyimpan: Izin ditolak. Pastikan Anda login sebagai admin.';
+      }
+      setMessage({ type: 'error', text: errorText });
       setTimeout(() => setMessage(null), 5000);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -202,23 +255,6 @@ export default function Admin() {
       setBatchInput('');
     } catch (err: any) {
       setMessage({ type: 'error', text: 'Gagal menambahkan batch: ' + err.message });
-    } finally {
-      setLoading(false);
-      setTimeout(() => setMessage(null), 5000);
-    }
-  };
-
-  const handleDeleteAllMembers = async () => {
-    setLoading(true);
-    try {
-      const snap = await getDocs(collection(db, 'members'));
-      for (const d of snap.docs) {
-        await deleteDoc(doc(db, 'members', d.id));
-      }
-      setMessage({ type: 'success', text: 'Semua anggota berhasil dihapus!' });
-      setDeleteConfirm(null);
-    } catch (err: any) {
-      setMessage({ type: 'error', text: 'Gagal menghapus semua: ' + err.message });
     } finally {
       setLoading(false);
       setTimeout(() => setMessage(null), 5000);
@@ -293,11 +329,11 @@ export default function Admin() {
     setCropImageSrc(null);
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-        <p className="text-zinc-500 font-medium">Memuat panel admin...</p>
+        <p className="text-zinc-500 font-medium">{authLoading ? 'Memeriksa autentikasi...' : 'Memuat panel admin...'}</p>
       </div>
     );
   }
@@ -323,13 +359,6 @@ export default function Admin() {
           <div className="flex flex-wrap gap-3 md:gap-4 w-full md:w-auto justify-start md:justify-end">
             {activeTab === 'members' && (
               <>
-                <button
-                  onClick={() => setDeleteConfirm({ collection: 'members', id: 'all', all: true })}
-                  className="flex-1 md:flex-none bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-red-500/20 text-xs md:text-sm"
-                >
-                  <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
-                  Hapus Semua
-                </button>
                 <button
                   onClick={() => setIsBatchModalOpen(true)}
                   className="flex-1 md:flex-none bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-zinc-200 dark:border-zinc-800 text-xs md:text-sm"
@@ -467,22 +496,15 @@ export default function Admin() {
       </div>
 
       {/* Modal Form */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="relative w-full max-w-xl mx-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] shadow-2xl z-10 flex flex-col max-h-[90vh] overflow-hidden"
-            >
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div
+            onClick={() => setIsModalOpen(false)}
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+          />
+          <div
+            className="relative w-full max-w-xl mx-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] shadow-2xl z-10 flex flex-col max-h-[90vh] overflow-hidden"
+          >
               <div className="flex items-center justify-between p-6 border-b border-zinc-100 dark:border-zinc-800">
                 <h2 className="text-xl font-black text-zinc-900 dark:text-white">{editingItem ? 'Edit' : 'Tambah'} {activeTab === 'events' ? 'Acara' : activeTab === 'projects' ? 'Project' : 'Anggota'}</h2>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all text-zinc-900 dark:text-white"><X className="w-5 h-5" /></button>
@@ -727,6 +749,38 @@ export default function Admin() {
 
                     <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                       <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Keahlian (Skills)</label>
+                        <button 
+                          type="button" 
+                          onClick={() => setMemberSkills([...memberSkills, ''])}
+                          className="text-accent text-xs font-bold flex items-center gap-1 hover:underline"
+                        >
+                          <Plus className="w-3 h-3" /> Tambah Skill
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {memberSkills.map((skill, index) => (
+                          <div key={index} className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5">
+                            <input 
+                              value={skill}
+                              onChange={(e) => {
+                                const newSkills = [...memberSkills];
+                                newSkills[index] = e.target.value;
+                                setMemberSkills(newSkills);
+                              }}
+                              className="bg-transparent border-none focus:outline-none text-xs w-24"
+                              placeholder="Skill..."
+                            />
+                            <button type="button" onClick={() => setMemberSkills(memberSkills.filter((_, i) => i !== index))} className="text-zinc-400 hover:text-red-500">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                      <div className="flex items-center justify-between">
                         <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Karya Individu (Portofolio)</label>
                         <button 
                           type="button" 
@@ -844,35 +898,28 @@ export default function Admin() {
 
                 <button
                   type="submit"
-                  className="w-full bg-accent hover:bg-accent/90 text-white font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-accent/20"
+                  disabled={saving}
+                  className="w-full bg-accent hover:bg-accent/90 disabled:opacity-50 text-white font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-accent/20"
                 >
-                  <Save className="w-5 h-5" />
-                  Simpan Data
+                  {saving ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Save className="w-5 h-5" />}
+                  {editingItem ? 'Simpan Perubahan' : 'Tambah Data'}
                 </button>
               </form>
             </div>
-          </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
       {/* Batch Add Modal */}
-      <AnimatePresence>
-        {isBatchModalOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsBatchModalOpen(false)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-2xl z-10 flex flex-col max-h-[90vh]"
-            >
+      {isBatchModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+          <div
+            onClick={() => setIsBatchModalOpen(false)}
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+          />
+          <div
+            className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-2xl z-10 flex flex-col max-h-[90vh]"
+          >
               <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
                 <div>
                   <h2 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">Batch Tambah Anggota</h2>
@@ -900,38 +947,28 @@ export default function Admin() {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
-      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {deleteConfirm && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setDeleteConfirm(null)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] overflow-hidden shadow-2xl z-10 p-8 text-center"
-            >
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+          <div
+            onClick={() => setDeleteConfirm(null)}
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+          />
+          <div
+            className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] overflow-hidden shadow-2xl z-10 p-8 text-center"
+          >
               <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Trash2 className="w-8 h-8" />
               </div>
               <h2 className="text-2xl font-black mb-2 text-zinc-900 dark:text-white tracking-tight">
-                {deleteConfirm.all ? 'Hapus Semua?' : 'Hapus Item?'}
+                Hapus Item?
               </h2>
               <p className="text-zinc-500 dark:text-zinc-400 mb-8">
-                {deleteConfirm.all 
-                  ? 'Tindakan ini akan menghapus seluruh data anggota secara permanen. Anda tidak dapat membatalkan ini.'
-                  : 'Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus item ini dari database?'}
+                Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus item ini dari database?
               </p>
               
               <div className="flex gap-4">
@@ -942,22 +979,15 @@ export default function Admin() {
                   Batal
                 </button>
                 <button
-                  onClick={() => {
-                    if (deleteConfirm.all) {
-                      handleDeleteAllMembers();
-                    } else {
-                      handleDelete();
-                    }
-                  }}
+                  onClick={handleDelete}
                   className="flex-1 px-6 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
                 >
                   Ya, Hapus
                 </button>
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }

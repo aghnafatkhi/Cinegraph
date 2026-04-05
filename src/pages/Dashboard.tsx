@@ -35,6 +35,7 @@ interface Member {
 export default function Dashboard() {
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const navigate = useNavigate();
@@ -88,9 +89,14 @@ export default function Dashboard() {
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if (!user) {
-        navigate('/login');
+        if (!authLoading) {
+          navigate('/login');
+        }
+        setAuthLoading(false);
         return;
       }
+
+      setAuthLoading(false);
 
       // Find member by UID or Email
       const q = query(
@@ -133,7 +139,7 @@ export default function Dashboard() {
     });
 
     return () => unsubscribeAuth();
-  }, [navigate]);
+  }, [navigate, authLoading]);
 
   const handleSave = async () => {
     if (!member) return;
@@ -197,11 +203,11 @@ export default function Dashboard() {
     setCropImageSrc(null);
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-        <p className="text-zinc-500 font-medium">Memuat dashboard...</p>
+        <p className="text-zinc-500 font-medium">{authLoading ? 'Memeriksa autentikasi...' : 'Memuat dashboard...'}</p>
       </div>
     );
   }

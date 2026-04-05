@@ -76,6 +76,17 @@
         "timestamp": { "type": "string", "format": "date-time", "description": "Waktu memilih" }
       },
       "required": ["projectId", "timestamp"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Profil pengguna sistem",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "description": "Email pengguna" },
+        "role": { "type": "string", "enum": ["admin", "user"], "description": "Peran pengguna" },
+        "displayName": { "type": "string", "description": "Nama tampilan" }
+      },
+      "required": ["email", "role"]
     }
   },
   "firestore": {
@@ -83,6 +94,7 @@
     "members": { "schema": "Member", "description": "Koleksi profil anggota" },
     "projects": { "schema": "Project", "description": "Koleksi karya video" },
     "attendance": { "schema": "Attendance", "description": "Koleksi kehadiran" },
-    "user_votes": { "schema": "UserVote", "description": "Koleksi suara pengguna" }
+    "user_votes": { "schema": "UserVote", "description": "Koleksi suara pengguna" },
+    "users": { "schema": "User", "description": "Koleksi profil pengguna" }
   }
 }

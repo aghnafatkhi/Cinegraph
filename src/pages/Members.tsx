@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../firebase';
+import AdBanner from '../components/AdBanner';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Users } from 'lucide-react';
@@ -198,6 +199,7 @@ export default function Members() {
           </div>
         )}
       </div>
+      <AdBanner />
     </motion.div>
   );
 }

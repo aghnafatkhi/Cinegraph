@@ -4,6 +4,7 @@ import { Play, Camera, Users, Image as ImageIcon, ArrowRight, Calendar, External
 import { Link } from 'react-router-dom';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import AdBanner from '../components/AdBanner';
 
 interface Event {
   id: string;
@@ -233,6 +234,8 @@ export default function Home() {
           </a>
         </div>
       </section>
+
+      <AdBanner />
     </motion.div>
   );
 }

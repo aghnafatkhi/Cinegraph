@@ -19,6 +19,7 @@ export default function Attendance() {
   const [user, setUser] = useState(auth.currentUser);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
   const [scanResult, setScanResult] = useState<{ success: boolean, message: string } | null>(null);
   const [recentScans, setRecentScans] = useState<AttendanceRecord[]>([]);
   const navigate = useNavigate();
@@ -26,16 +27,19 @@ export default function Attendance() {
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((u) => {
       if (!u) {
-        navigate('/login');
-        return;
+        if (!authLoading) {
+          navigate('/login');
+        }
+      } else {
+        setUser(u);
+        setIsAdmin(u.email === 'aghna1011@gmail.com');
       }
-      setUser(u);
-      setIsAdmin(u.email === 'aghna1011@gmail.com');
+      setAuthLoading(false);
       setLoading(false);
     });
 
     return () => unsubscribeAuth();
-  }, [navigate]);
+  }, [navigate, authLoading]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -114,10 +118,11 @@ export default function Attendance() {
     }
   }, [isAdmin, loading]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
+        <p className="text-zinc-500 font-medium">{authLoading ? 'Memeriksa autentikasi...' : 'Memuat sistem presensi...'}</p>
       </div>
     );
   }

@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "Event": {
+      "title": "Event",
+      "description": "Dokumentasi acara sekolah",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Nama acara" },
+        "description": { "type": "string", "description": "Deskripsi singkat acara" },
+        "date": { "type": "string", "format": "date", "description": "Tanggal acara" },
+        "coverImage": { "type": "string", "description": "URL gambar sampul" },
+        "googleDriveLink": { "type": "string", "description": "Link Google Drive untuk galeri lengkap" }
+      },
+      "required": ["title", "date", "coverImage"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "Portofolio anggota ekstrakurikuler",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nama lengkap anggota" },
+        "email": { "type": "string", "description": "Email anggota untuk login" },
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "role": { "type": "string", "description": "Jabatan atau spesialisasi (misal: Editor, Kameramen)" },
+        "photoUrl": { "type": "string", "description": "URL foto profil" },
+        "skills": { "type": "array", "items": { "type": "string" }, "description": "Daftar keahlian" },
+        "portfolio": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "link": { "type": "string" }
+            }
+          },
+          "description": "Hasil pekerjaan anggota"
+        }
+      },
+      "required": ["name", "role", "photoUrl"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Karya video utama",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Judul video" },
+        "description": { "type": "string", "description": "Deskripsi video" },
+        "videoUrl": { "type": "string", "description": "URL video (YouTube/Drive)" },
+        "thumbnailUrl": { "type": "string", "description": "URL gambar thumbnail" },
+        "category": { "type": "string", "description": "Kategori (Profil Sekolah, Profil Ekskul, dll)" }
+      },
+      "required": ["title", "videoUrl", "thumbnailUrl"]
+    }
+  },
+  "firestore": {
+    "events": { "schema": "Event", "description": "Koleksi galeri acara" },
+    "members": { "schema": "Member", "description": "Koleksi profil anggota" },
+    "projects": { "schema": "Project", "description": "Koleksi karya video" }
+  }
+}

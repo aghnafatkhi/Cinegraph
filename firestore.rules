@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: events
+    // Fields:
+    //   - title: string (required)
+    //   - description: string (optional)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - coverImage: string (required, URL)
+    //   - googleDriveLink: string (optional, URL)
+    //
+    // Collection: members
+    // Fields:
+    //   - name: string (required)
+    //   - role: string (required)
+    //   - photoUrl: string (required, URL)
+    //   - skills: list of strings (optional)
+    //   - portfolio: list of objects (optional, {title: string, link: string})
+    //
+    // Collection: projects
+    // Fields:
+    //   - title: string (required)
+    //   - description: string (optional)
+    //   - videoUrl: string (required, URL)
+    //   - thumbnailUrl: string (required, URL)
+    //   - category: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.email == "aghna1011@gmail.com");
+    }
+
+    function isValidUrl(url) {
+      return url is string;
+    }
+
+    function isValidEvent(data) {
+      return data.keys().hasAll(['title', 'date', 'coverImage']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.date is string && data.date.size() > 0 &&
+             isValidUrl(data.coverImage) &&
+             (!('description' in data) || data.description == "" || (data.description is string && data.description.size() < 5000)) &&
+             (!('googleDriveLink' in data) || data.googleDriveLink == "" || isValidUrl(data.googleDriveLink));
+    }
+
+    function isValidMember(data) {
+      return data.keys().hasAll(['name', 'role', 'photoUrl']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.role is string && data.role.size() > 0 && data.role.size() < 100 &&
+             isValidUrl(data.photoUrl) &&
+             (!('skills' in data) || data.skills is list) &&
+             (!('portfolio' in data) || data.portfolio is list) &&
+             (!('email' in data) || data.email == "" || data.email is string);
+    }
+
+    function isValidProject(data) {
+      return data.keys().hasAll(['title', 'videoUrl', 'thumbnailUrl']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             isValidUrl(data.videoUrl) &&
+             isValidUrl(data.thumbnailUrl) &&
+             (!('description' in data) || data.description == "" || (data.description is string && data.description.size() < 5000)) &&
+             (!('category' in data) || data.category == "" || (data.category is string && data.category.size() < 100));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Public read access for events, members, and projects
+    match /events/{eventId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidEvent(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /members/{memberId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidMember(request.resource.data);
+      allow update: if (isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.uid)) && isValidMember(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidProject(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // User profiles (only owner or admin can read/write)
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+  }
+}

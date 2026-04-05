@@ -220,7 +220,9 @@ export default function Home() {
             Jadilah bagian dari tim kreatif Cinegraph Nepal dan kembangkan bakat cinematographymu bersama kami.
           </p>
           <a
-            href="#"
+            href="https://forms.gle/tDVYctj1VceLGCPx9"
+            target="_blank"
+            rel="noopener noreferrer"
             className="bg-white text-accent px-10 py-5 rounded-2xl font-black text-lg hover:bg-zinc-100 transition-all inline-block relative z-10 shadow-xl"
           >
             Daftar Sekarang

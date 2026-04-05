@@ -127,7 +127,6 @@ export default function Gallery() {
                 key={event.id}
                 initial="hidden"
                 animate="visible"
-                whileHover="hover"
                 variants={{
                   hidden: { opacity: 0, y: 20 },
                   visible: { opacity: 1, y: 0 }
@@ -161,15 +160,9 @@ export default function Gallery() {
                   viewMode === 'grid' ? "absolute inset-0" : "flex-grow p-8 flex flex-col justify-center"
                 )}>
                   {viewMode === 'grid' ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-end p-6 md:p-8 text-center overflow-hidden">
-                      <motion.div 
-                        variants={{
-                          hidden: { y: 10 },
-                          visible: { y: 10 },
-                          hover: { y: 0 }
-                        }}
-                        transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-                        className="w-full relative z-10"
+                    <div className="absolute inset-0 flex flex-col items-center justify-end p-8 md:p-12 text-center overflow-hidden">
+                      <div 
+                        className="w-full relative z-10 transition-transform duration-500"
                       >
                         <div className="flex items-center justify-center gap-2 mb-2">
                           <div className="bg-accent/20 backdrop-blur-md border border-accent/30 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-accent">
@@ -181,14 +174,8 @@ export default function Gallery() {
                           {event.title}
                         </h3>
 
-                        <motion.div 
-                          variants={{
-                            hidden: { opacity: 0, height: 0 },
-                            visible: { opacity: 0, height: 0 },
-                            hover: { opacity: 1, height: 'auto' }
-                          }}
-                          transition={{ duration: 0.4 }}
-                          className="overflow-hidden text-center"
+                        <div 
+                          className="overflow-hidden text-center transition-all duration-500 max-h-40 opacity-100 md:max-h-0 md:opacity-0 md:group-hover:max-h-40 md:group-hover:opacity-100"
                         >
                           <div className="pt-4">
                             <p className="text-zinc-300 text-sm mb-6 line-clamp-2 leading-relaxed">
@@ -210,8 +197,8 @@ export default function Gallery() {
                               </div>
                             )}
                           </div>
-                        </motion.div>
-                      </motion.div>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     /* List Mode Content */

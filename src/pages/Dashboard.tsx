@@ -3,7 +3,9 @@ import { auth, db } from '../firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, getDocs, limit } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { User, Briefcase, Award, Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { User, Briefcase, Award, Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, Image as ImageIcon, ExternalLink, Upload } from 'lucide-react';
+import ImageCropper from '../components/ImageCropper';
+import { resizeImage } from '../lib/imageUtils';
 
 interface PortfolioItem {
   title: string;
@@ -14,11 +16,20 @@ interface Member {
   id: string;
   name: string;
   role: string;
+  kelas?: string;
   photoUrl: string;
   email?: string;
+  instagram?: string;
+  phone?: string;
   uid?: string;
   skills?: string[];
   portfolio?: PortfolioItem[];
+  bio?: string;
+  joinYear?: string;
+  tiktok?: string;
+  youtube?: string;
+  favoriteGear?: string;
+  featuredPhotos?: string[];
 }
 
 export default function Dashboard() {
@@ -30,9 +41,49 @@ export default function Dashboard() {
 
   // Form State
   const [role, setRole] = useState('');
+  const [kelas, setKelas] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [phone, setPhone] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [bio, setBio] = useState('');
+  const [joinYear, setJoinYear] = useState('');
+  const [tiktok, setTiktok] = useState('');
+  const [youtube, setYoutube] = useState('');
+  const [favoriteGear, setFavoriteGear] = useState('');
+  const [featuredPhotos, setFeaturedPhotos] = useState<string[]>([]);
+  const [dragActive, setDragActive] = useState(false);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 800)));
+      setFeaturedPhotos([...featuredPhotos, ...newPhotos]);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 800)));
+      setFeaturedPhotos([...featuredPhotos, ...newPhotos]);
+    }
+  };
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
@@ -54,9 +105,18 @@ export default function Dashboard() {
           const data = { id: docData.id, ...docData.data() } as Member;
           setMember(data);
           setRole(data.role || '');
+          setKelas(data.kelas || '');
           setPhotoUrl(data.photoUrl || '');
+          setInstagram(data.instagram || '');
+          setPhone(data.phone || '');
           setSkills(data.skills || []);
           setPortfolio(data.portfolio || []);
+          setBio(data.bio || '');
+          setJoinYear(data.joinYear || '');
+          setTiktok(data.tiktok || '');
+          setYoutube(data.youtube || '');
+          setFavoriteGear(data.favoriteGear || '');
+          setFeaturedPhotos(data.featuredPhotos || []);
 
           // Link UID if not already linked
           if (!data.uid) {
@@ -82,9 +142,18 @@ export default function Dashboard() {
     try {
       await updateDoc(doc(db, 'members', member.id), {
         role,
+        kelas,
         photoUrl,
+        instagram,
+        phone,
         skills,
-        portfolio
+        portfolio,
+        bio,
+        joinYear,
+        tiktok,
+        youtube,
+        favoriteGear,
+        featuredPhotos
       });
       setMessage({ type: 'success', text: 'Profil berhasil diperbarui!' });
     } catch (err: any) {
@@ -121,6 +190,11 @@ export default function Dashboard() {
 
   const removePortfolio = (index: number) => {
     setPortfolio(portfolio.filter((_, i) => i !== index));
+  };
+
+  const handleCropComplete = (croppedImageBase64: string) => {
+    setPhotoUrl(croppedImageBase64);
+    setCropImageSrc(null);
   };
 
   if (loading) {
@@ -169,6 +243,16 @@ export default function Dashboard() {
 
   return (
     <div className="bg-zinc-950 text-white min-h-screen pt-32 pb-20 px-6">
+      {/* Crop Modal */}
+      {cropImageSrc && (
+        <ImageCropper
+          imageSrc={cropImageSrc}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setCropImageSrc(null)}
+          aspectRatio={3 / 4}
+        />
+      )}
+
       <div className="max-w-5xl mx-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
           <div className="flex items-center gap-6">
@@ -236,17 +320,84 @@ export default function Dashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">URL Foto Profil</label>
-                  <div className="relative">
-                    <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
-                    <input
-                      type="text"
-                      value={photoUrl}
-                      onChange={(e) => setPhotoUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-accent transition-all"
-                    />
-                  </div>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Kelas</label>
+                  <input
+                    type="text"
+                    value={kelas}
+                    onChange={(e) => setKelas(e.target.value)}
+                    placeholder="Contoh: X-1, XI-IPA"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Instagram</label>
+                  <input
+                    type="text"
+                    value={instagram}
+                    onChange={(e) => setInstagram(e.target.value)}
+                    placeholder="Username tanpa @"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">TikTok</label>
+                  <input
+                    type="text"
+                    value={tiktok}
+                    onChange={(e) => setTiktok(e.target.value)}
+                    placeholder="Username tanpa @"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">YouTube</label>
+                  <input
+                    type="text"
+                    value={youtube}
+                    onChange={(e) => setYoutube(e.target.value)}
+                    placeholder="Link Channel YouTube"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">No. WhatsApp</label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="08..."
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Tahun Bergabung</label>
+                  <input
+                    type="text"
+                    value={joinYear}
+                    onChange={(e) => setJoinYear(e.target.value)}
+                    placeholder="Contoh: 2023"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Peralatan Favorit</label>
+                  <input
+                    type="text"
+                    value={favoriteGear}
+                    onChange={(e) => setFavoriteGear(e.target.value)}
+                    placeholder="Contoh: Sony A7III, Lensa 50mm"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Bio / Tentang Saya</label>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Ceritakan sedikit tentang diri Anda..."
+                    rows={4}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all resize-none"
+                  />
                 </div>
               </div>
             </div>
@@ -277,6 +428,49 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <ImageIcon className="w-5 h-5 text-accent" />
+                  <h3 className="text-lg font-bold">Galeri Foto Unggulan</h3>
+                </div>
+              </div>
+              
+              <div 
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all mb-6 ${dragActive ? 'border-accent bg-accent/5' : 'border-zinc-800 bg-zinc-950 hover:border-accent/50'}`}
+              >
+                <Upload className="w-8 h-8 text-zinc-500 mx-auto mb-3" />
+                <p className="text-sm text-zinc-400 mb-2">Drag & drop foto ke sini, atau</p>
+                <label className="cursor-pointer inline-block bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">
+                  Pilih File
+                  <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {featuredPhotos.map((photo, index) => (
+                  <div key={index} className="relative group rounded-xl overflow-hidden aspect-video border border-zinc-800">
+                    <img src={photo} alt={`Featured ${index}`} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button onClick={() => {
+                        const newPhotos = [...featuredPhotos];
+                        newPhotos.splice(index, 1);
+                        setFeaturedPhotos(newPhotos);
+                      }} className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {featuredPhotos.length === 0 && (
+                <p className="text-zinc-500 text-sm text-center py-4">Belum ada foto unggulan.</p>
+              )}
             </div>
           </div>
 

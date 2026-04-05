@@ -22,7 +22,10 @@
         "email": { "type": "string", "description": "Email anggota untuk login" },
         "uid": { "type": "string", "description": "Firebase Auth UID" },
         "role": { "type": "string", "description": "Jabatan atau spesialisasi (misal: Editor, Kameramen)" },
+        "kelas": { "type": "string", "description": "Kelas anggota (misal: X-1, XI-IPA)" },
         "photoUrl": { "type": "string", "description": "URL foto profil" },
+        "instagram": { "type": "string", "description": "Username Instagram (tanpa @)" },
+        "phone": { "type": "string", "description": "Nomor WhatsApp" },
         "skills": { "type": "array", "items": { "type": "string" }, "description": "Daftar keahlian" },
         "portfolio": {
           "type": "array",
@@ -47,14 +50,39 @@
         "description": { "type": "string", "description": "Deskripsi video" },
         "videoUrl": { "type": "string", "description": "URL video (YouTube/Drive)" },
         "thumbnailUrl": { "type": "string", "description": "URL gambar thumbnail" },
-        "category": { "type": "string", "description": "Kategori (Profil Sekolah, Profil Ekskul, dll)" }
+        "category": { "type": "string", "description": "Kategori (Profil Sekolah, Profil Ekskul, dll)" },
+        "votes": { "type": "number", "description": "Jumlah suara" }
       },
       "required": ["title", "videoUrl", "thumbnailUrl"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Catatan kehadiran anggota",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID anggota yang hadir" },
+        "userName": { "type": "string", "description": "Nama anggota" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Waktu kehadiran" },
+        "status": { "type": "string", "description": "Status kehadiran (Hadir, dll)" }
+      },
+      "required": ["userId", "userName", "timestamp", "status"]
+    },
+    "UserVote": {
+      "title": "UserVote",
+      "description": "Catatan suara pengguna",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string", "description": "ID proyek yang dipilih" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Waktu memilih" }
+      },
+      "required": ["projectId", "timestamp"]
     }
   },
   "firestore": {
     "events": { "schema": "Event", "description": "Koleksi galeri acara" },
     "members": { "schema": "Member", "description": "Koleksi profil anggota" },
-    "projects": { "schema": "Project", "description": "Koleksi karya video" }
+    "projects": { "schema": "Project", "description": "Koleksi karya video" },
+    "attendance": { "schema": "Attendance", "description": "Koleksi kehadiran" },
+    "user_votes": { "schema": "UserVote", "description": "Koleksi suara pengguna" }
   }
 }

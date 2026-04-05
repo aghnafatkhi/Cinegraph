@@ -5,10 +5,13 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Gallery from './pages/Gallery';
 import Members from './pages/Members';
+import MemberDetail from './pages/MemberDetail';
 import Projects from './pages/Projects';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
+import Attendance from './pages/Attendance';
+import Voting from './pages/Voting';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import { ThemeProvider } from './context/ThemeContext';
@@ -25,10 +28,13 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/gallery" element={<Gallery />} />
                 <Route path="/members" element={<Members />} />
+                <Route path="/member/:id" element={<MemberDetail />} />
                 <Route path="/projects" element={<Projects />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/attendance" element={<Attendance />} />
+                <Route path="/voting" element={<Voting />} />
               </Routes>
             </main>
             <Footer />

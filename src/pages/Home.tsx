@@ -22,7 +22,7 @@ export default function Home() {
       if (!snapshot.empty) {
         setLatestEvent({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Event);
       }
-    });
+    }, (error) => console.error("Error fetching latest event:", error));
     return () => unsubscribe();
   }, []);
 
@@ -51,7 +51,12 @@ export default function Home() {
   ];
 
   return (
-    <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen transition-colors duration-300">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen transition-colors duration-300"
+    >
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col overflow-hidden pt-32 pb-12">
         {/* Background Image with Overlay */}
@@ -162,7 +167,6 @@ export default function Home() {
               key={index}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.2 }}
               viewport={{ once: true }}
               className={cn(
                 "p-10 rounded-3xl border border-zinc-100 dark:border-zinc-900 hover:border-accent/30 transition-all group shadow-sm hover:shadow-xl",
@@ -229,7 +233,7 @@ export default function Home() {
           </a>
         </div>
       </section>
-    </div>
+    </motion.div>
   );
 }
 

@@ -1,8 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../firebase';
-import { motion, AnimatePresence } from 'motion/react';
-import { Users, ExternalLink, Briefcase, Award, X } from 'lucide-react';
+import { motion } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Users } from 'lucide-react';
+
+const roleOrder: Record<string, number> = {
+  'komisi': 1,
+  'sekbid': 2,
+  'ketua': 3,
+  'wakil ketua': 4,
+  'sekretaris': 5,
+  'bendahara': 6,
+  'div': 7,
+  'anggota': 8
+};
+
+const getRolePriority = (role: string) => {
+  const normalizedRole = role.toLowerCase();
+  for (const [key, value] of Object.entries(roleOrder)) {
+    if (normalizedRole.includes(key)) return value;
+  }
+  return 99; // Default for unknown roles
+};
 
 interface PortfolioItem {
   title: string;
@@ -13,7 +33,11 @@ interface Member {
   id: string;
   name: string;
   role: string;
+  kelas?: string;
   photoUrl: string;
+  email?: string;
+  instagram?: string;
+  phone?: string;
   skills?: string[];
   portfolio?: PortfolioItem[];
 }
@@ -21,15 +45,28 @@ interface Member {
 export default function Members() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const q = query(collection(db, 'members'), orderBy('name', 'asc'));
+    const q = query(collection(db, 'members'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const memberData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Member[];
+      
+      // Sort by role priority first, then by name
+      memberData.sort((a, b) => {
+        const priorityA = getRolePriority(a.role);
+        const priorityB = getRolePriority(b.role);
+        
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        return a.name.localeCompare(b.name);
+      });
+
       setMembers(memberData);
       setLoading(false);
     }, (error) => {
@@ -40,8 +77,19 @@ export default function Members() {
     return () => unsubscribe();
   }, []);
 
+  const filteredMembers = members.filter(member => 
+    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    member.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (member.kelas && member.kelas.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
-    <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
+    >
       <div className="max-w-7xl mx-auto">
         <header className="mb-20 text-center">
           <motion.div
@@ -59,134 +107,97 @@ export default function Members() {
           </motion.div>
         </header>
 
+        {/* Search Bar */}
+        <div className="max-w-2xl mx-auto mb-16 relative">
+          <div className="relative group">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-accent transition-colors" />
+            <input
+              type="text"
+              placeholder="Cari nama, role, atau kelas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full py-4 pl-14 pr-6 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all shadow-sm hover:shadow-md"
+            />
+          </div>
+          {searchTerm && (
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400 uppercase tracking-widest">
+              {filteredMembers.length} Hasil
+            </div>
+          )}
+        </div>
+
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
             <p className="text-zinc-500 font-medium">Memuat data tim...</p>
           </div>
+        ) : filteredMembers.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {filteredMembers.map((member, index) => {
+              const firstName = member.name.split(' ')[0];
+              const nameParts = member.name.split(' ');
+
+              return (
+                <div
+                  key={member.id}
+                  onClick={() => navigate(`/member/${member.id}`)}
+                  className="group cursor-pointer rounded-[2rem] overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-accent/50 hover:shadow-2xl transition-all relative flex flex-col h-[450px]"
+                >
+                  {/* Top Section (Orange + Black Bar + Photo) */}
+                  <div className="relative h-[300px] w-full bg-[#F59E0B] overflow-hidden shrink-0">
+                    {/* Black Bar */}
+                    <div className="absolute left-0 top-0 bottom-0 w-20 bg-black z-10 flex items-center justify-center">
+                      <div className="text-white font-black text-5xl tracking-tight -rotate-90 whitespace-nowrap capitalize">
+                        {firstName}
+                      </div>
+                    </div>
+                    
+                    {/* Transparent PNG Photo - Fixed sizing and position */}
+                    <div className="absolute bottom-0 right-[-20px] h-[185%] w-[calc(100%-10px)] z-20">
+                      <img
+                        src={member.photoUrl}
+                        alt={member.name}
+                        className="w-full h-full object-contain object-bottom group-hover:scale-105 transition-transform duration-500 origin-bottom drop-shadow-2xl"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bottom Section (White with Text) */}
+                  <div className="relative flex-grow bg-white dark:bg-zinc-900 p-6 z-30 flex flex-col justify-end overflow-hidden">
+                    {/* Subtle Background Pattern (Large Circles) */}
+                    <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-[#F59E0B]/10 dark:bg-[#F59E0B]/5"></div>
+                    <div className="absolute left-10 -top-10 w-32 h-32 rounded-full bg-[#F59E0B]/10 dark:bg-[#F59E0B]/5"></div>
+                    
+                    <div className="relative z-10 flex justify-between items-end h-full">
+                      <div className="flex flex-col justify-end">
+                        <h3 className="text-2xl font-black leading-none text-black dark:text-white mb-2 capitalize">
+                          {member.name}
+                        </h3>
+                        <p className="text-[#F59E0B] font-bold text-sm mb-1 uppercase">{member.role}</p>
+                        {member.kelas && (
+                          <p className="text-zinc-500 dark:text-zinc-400 font-medium text-sm mb-2">{member.kelas}</p>
+                        )}
+                        {member.phone && (
+                          <p className="text-black dark:text-white font-black text-lg">{member.phone}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {members.map((member, index) => (
-              <motion.div
-                key={member.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => setSelectedMember(member)}
-                className="group cursor-pointer bg-zinc-50 dark:bg-zinc-900 rounded-[2.5rem] p-6 border border-zinc-100 dark:border-zinc-800 hover:border-accent/50 hover:bg-white dark:hover:bg-zinc-900/80 transition-all text-center shadow-sm hover:shadow-xl"
-              >
-                <div className="relative w-32 h-32 mx-auto mb-6">
-                  <div className="absolute inset-0 bg-accent rounded-full blur-2xl opacity-0 group-hover:opacity-20 transition-opacity" />
-                  <img
-                    src={member.photoUrl}
-                    alt={member.name}
-                    className="w-full h-full object-cover rounded-full border-4 border-zinc-100 dark:border-zinc-800 group-hover:border-accent transition-colors relative z-10"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-                <h3 className="text-xl font-bold mb-1 text-zinc-900 dark:text-white group-hover:text-accent transition-colors">{member.name}</h3>
-                <p className="text-zinc-500 dark:text-zinc-500 text-sm font-medium uppercase tracking-widest mb-6">{member.role}</p>
-                <div className="flex flex-wrap justify-center gap-2 mb-8">
-                  {member.skills?.slice(0, 3).map((skill, i) => (
-                    <span key={i} className="text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-1 rounded-md font-bold uppercase tracking-wider">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-                <button className="w-full bg-zinc-100 dark:bg-zinc-800 group-hover:bg-accent text-zinc-900 dark:text-white group-hover:text-white py-3 rounded-2xl font-bold text-sm transition-all">
-                  Lihat Portofolio
-                </button>
-              </motion.div>
-            ))}
+          <div className="text-center py-20">
+            <div className="bg-zinc-50 dark:bg-zinc-900 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Users className="w-10 h-10 text-zinc-300 dark:text-zinc-700" />
+            </div>
+            <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white">Anggota tidak ditemukan</h3>
+            <p className="text-zinc-500">Coba gunakan kata kunci pencarian lain.</p>
           </div>
         )}
       </div>
-
-      {/* Member Modal */}
-      <AnimatePresence>
-        {selectedMember && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedMember(null)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[3rem] overflow-hidden shadow-2xl z-10"
-            >
-              <button
-                onClick={() => setSelectedMember(null)}
-                className="absolute top-6 right-6 p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-accent rounded-full transition-colors z-20"
-              >
-                <X className="w-5 h-5 text-zinc-900 dark:text-white" />
-              </button>
-
-              <div className="grid grid-cols-1 md:grid-cols-5">
-                <div className="md:col-span-2 bg-zinc-50 dark:bg-zinc-800/50 p-10 flex flex-col items-center text-center">
-                  <img
-                    src={selectedMember.photoUrl}
-                    alt={selectedMember.name}
-                    className="w-40 h-40 object-cover rounded-3xl border-4 border-white dark:border-zinc-900 mb-6 shadow-2xl"
-                    referrerPolicy="no-referrer"
-                  />
-                  <h2 className="text-2xl font-black mb-1 text-zinc-900 dark:text-white">{selectedMember.name}</h2>
-                  <p className="text-accent font-bold text-sm uppercase tracking-widest mb-6">{selectedMember.role}</p>
-                  
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {selectedMember.skills?.map((skill, i) => (
-                      <span key={i} className="text-[10px] bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 px-3 py-1 rounded-full font-bold uppercase tracking-wider border border-zinc-100 dark:border-zinc-800">
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="md:col-span-3 p-10">
-                  <div className="mb-8">
-                    <div className="flex items-center gap-3 mb-6">
-                      <Briefcase className="w-5 h-5 text-accent" />
-                      <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Hasil Pekerjaan</h3>
-                    </div>
-                    <div className="space-y-4">
-                      {selectedMember.portfolio && selectedMember.portfolio.length > 0 ? (
-                        selectedMember.portfolio.map((item, i) => (
-                          <a
-                            key={i}
-                            href={item.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-800 rounded-2xl transition-all group"
-                          >
-                            <span className="font-medium text-zinc-600 dark:text-zinc-300 group-hover:text-accent transition-colors">{item.title}</span>
-                            <ExternalLink className="w-4 h-4 text-zinc-400 group-hover:text-accent transition-colors" />
-                          </a>
-                        ))
-                      ) : (
-                        <p className="text-zinc-400 dark:text-zinc-600 text-sm italic">Belum ada item portofolio.</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-3 mb-4">
-                      <Award className="w-5 h-5 text-accent" />
-                      <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Tentang</h3>
-                    </div>
-                    <p className="text-zinc-500 dark:text-zinc-500 text-sm leading-relaxed">
-                      Anggota aktif Cinegraph Nepal SMAN 1 Cileungsi yang berfokus pada bidang {selectedMember.role}. Berkontribusi dalam berbagai project kreatif sekolah.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

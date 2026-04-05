@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Camera, Menu, X, Film, Users, Image as ImageIcon, Home, User, Sun, Moon } from 'lucide-react';
+import { Camera, Menu, X, Film, Users, Image as ImageIcon, Home, User, Sun, Moon, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -40,6 +40,8 @@ export default function Navbar() {
     { name: 'Galeri', path: '/gallery', icon: <ImageIcon className="w-4 h-4" /> },
     { name: 'Anggota', path: '/members', icon: <Users className="w-4 h-4" /> },
     { name: 'Karya', path: '/projects', icon: <Film className="w-4 h-4" /> },
+    { name: 'Voting', path: '/voting', icon: <Trophy className="w-4 h-4" /> },
+    { name: 'Presensi', path: '/attendance', icon: <Camera className="w-4 h-4" /> },
   ];
 
   if (user?.email === 'aghna1011@gmail.com') {

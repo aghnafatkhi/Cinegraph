@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import { collection, onSnapshot, query, orderBy, addDoc, deleteDoc, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, deleteDoc, doc, updateDoc, getDocs, where } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { resizeImage } from '../lib/imageUtils';
+import ImageCropper from '../components/ImageCropper';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -36,8 +38,10 @@ interface Member {
   id: string;
   name: string;
   role: string;
+  kelas?: string;
   email: string;
   photoUrl: string;
+  portfolio?: { id: string, title: string, link: string, thumbnailUrl?: string, votes?: number }[];
 }
 
 export default function Admin() {
@@ -52,16 +56,26 @@ export default function Admin() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ collection: string, id: string } | null>(null);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [batchInput, setBatchInput] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<{ collection: string, id: string, all?: boolean } | null>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [dragActive, setDragActive] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [featuredPhotosPreview, setFeaturedPhotosPreview] = useState<string[]>([]);
+  const [portfolioItems, setPortfolioItems] = useState<{ id: string, title: string, link: string, thumbnailUrl?: string, votes?: number }[]>([]);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [featuredPhotosDragActive, setFeaturedPhotosDragActive] = useState(false);
 
   useEffect(() => {
     if (editingItem) {
       setPreviewUrl(editingItem.coverImage || editingItem.thumbnailUrl || editingItem.photoUrl || '');
+      setFeaturedPhotosPreview(editingItem.featuredPhotos || []);
+      setPortfolioItems(editingItem.portfolio || []);
     } else {
       setPreviewUrl('');
+      setFeaturedPhotosPreview([]);
+      setPortfolioItems([]);
     }
   }, [editingItem]);
 
@@ -77,14 +91,17 @@ export default function Admin() {
     // Fetch Data
     const unsubEvents = onSnapshot(query(collection(db, 'events'), orderBy('date', 'desc')), (snap) => {
       setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Event[]);
-    });
+    }, (error) => console.error("Error fetching events:", error));
 
     const unsubProjects = onSnapshot(query(collection(db, 'projects'), orderBy('title', 'asc')), (snap) => {
       setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Project[]);
-    });
+    }, (error) => console.error("Error fetching projects:", error));
 
     const unsubMembers = onSnapshot(collection(db, 'members'), (snap) => {
       setMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Member[]);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching members:", error);
       setLoading(false);
     });
 
@@ -122,7 +139,11 @@ export default function Admin() {
     // Ensure image URL is from preview if drag-and-dropped
     if (activeTab === 'events') data.coverImage = previewUrl;
     if (activeTab === 'projects') data.thumbnailUrl = previewUrl;
-    if (activeTab === 'members') data.photoUrl = previewUrl;
+    if (activeTab === 'members') {
+      data.photoUrl = previewUrl;
+      data.featuredPhotos = featuredPhotosPreview;
+      data.portfolio = portfolioItems;
+    }
 
     if (!previewUrl) {
       setMessage({ type: 'error', text: 'Gambar/Foto wajib diisi!' });
@@ -147,6 +168,63 @@ export default function Admin() {
     }
   };
 
+  const handleBatchAddMembers = async () => {
+    if (!batchInput.trim()) return;
+    
+    setLoading(true);
+    const lines = batchInput.split('\n').filter(l => l.trim());
+    let added = 0;
+    let skipped = 0;
+    
+    try {
+      for (const line of lines) {
+        const [name, email, role, kelas] = line.split('|').map(s => s.trim());
+        if (!name || !email) continue;
+
+        const q = query(collection(db, 'members'), where('email', '==', email));
+        const snap = await getDocs(q);
+        
+        if (snap.empty) {
+          await addDoc(collection(db, 'members'), {
+            name,
+            email,
+            role: role || 'Anggota',
+            kelas: kelas || '',
+            photoUrl: `https://picsum.photos/seed/${encodeURIComponent(name)}/200/200`
+          });
+          added++;
+        } else {
+          skipped++;
+        }
+      }
+      setMessage({ type: 'success', text: `Berhasil menambahkan ${added} anggota! (${skipped} dilewati karena email sudah ada)` });
+      setIsBatchModalOpen(false);
+      setBatchInput('');
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Gagal menambahkan batch: ' + err.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  const handleDeleteAllMembers = async () => {
+    setLoading(true);
+    try {
+      const snap = await getDocs(collection(db, 'members'));
+      for (const d of snap.docs) {
+        await deleteDoc(doc(db, 'members', d.id));
+      }
+      setMessage({ type: 'success', text: 'Semua anggota berhasil dihapus!' });
+      setDeleteConfirm(null);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Gagal menghapus semua: ' + err.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -165,21 +243,54 @@ export default function Admin() {
       const file = e.dataTransfer.files[0];
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
+        setCropImageSrc(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const handleFeaturedPhotosDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setFeaturedPhotosDragActive(true);
+    } else if (e.type === "dragleave") {
+      setFeaturedPhotosDragActive(false);
+    }
+  };
+
+  const handleFeaturedPhotosDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFeaturedPhotosDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 800)));
+      setFeaturedPhotosPreview([...featuredPhotosPreview, ...newPhotos]);
+    }
+  };
+
+  const handleFeaturedPhotosFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 800)));
+      setFeaturedPhotosPreview([...featuredPhotosPreview, ...newPhotos]);
+    }
+  };
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
+        setCropImageSrc(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleCropComplete = (croppedImageBase64: string) => {
+    setPreviewUrl(croppedImageBase64);
+    setCropImageSrc(null);
   };
 
   if (loading) {
@@ -193,29 +304,57 @@ export default function Admin() {
 
   return (
     <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 font-sans transition-colors duration-300">
+      {/* Crop Modal */}
+      {cropImageSrc && (
+        <ImageCropper
+          imageSrc={cropImageSrc}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setCropImageSrc(null)}
+          aspectRatio={activeTab === 'members' ? 3 / 4 : 16 / 9}
+        />
+      )}
+
       <div className="max-w-7xl mx-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
           <div>
             <h1 className="text-4xl font-black tracking-tighter mb-2 text-zinc-900 dark:text-white">PANEL <span className="text-accent">ADMIN</span></h1>
             <p className="text-zinc-500 dark:text-zinc-500">Kelola konten website Cinegraph Nepal secara langsung.</p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-3 md:gap-4 w-full md:w-auto justify-start md:justify-end">
+            {activeTab === 'members' && (
+              <>
+                <button
+                  onClick={() => setDeleteConfirm({ collection: 'members', id: 'all', all: true })}
+                  className="flex-1 md:flex-none bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-red-500/20 text-xs md:text-sm"
+                >
+                  <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+                  Hapus Semua
+                </button>
+                <button
+                  onClick={() => setIsBatchModalOpen(true)}
+                  className="flex-1 md:flex-none bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-zinc-200 dark:border-zinc-800 text-xs md:text-sm"
+                >
+                  <Users className="w-4 h-4 md:w-5 md:h-5" />
+                  Batch Tambah
+                </button>
+              </>
+            )}
             <button
               onClick={() => {
                 setEditingItem(null);
                 setPreviewUrl('');
                 setIsModalOpen(true);
               }}
-              className="bg-accent hover:bg-accent/90 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-accent/20"
+              className="flex-1 md:flex-none bg-accent hover:bg-accent/90 text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-accent/20 text-xs md:text-sm"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4 md:w-5 md:h-5" />
               Tambah {activeTab === 'events' ? 'Acara' : activeTab === 'projects' ? 'Project' : 'Anggota'}
             </button>
             <button
               onClick={() => auth.signOut()}
-              className="bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all border border-zinc-200 dark:border-zinc-800"
+              className="flex-1 md:flex-none bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-zinc-200 dark:border-zinc-800 text-xs md:text-sm"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-4 h-4 md:w-5 md:h-5" />
               Keluar
             </button>
           </div>
@@ -505,17 +644,156 @@ export default function Admin() {
                       <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Nama Lengkap</label>
                       <input name="name" defaultValue={editingItem?.name} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Email</label>
-                      <input name="email" type="email" defaultValue={editingItem?.email} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Email</label>
+                        <input name="email" type="email" defaultValue={editingItem?.email} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Kelas</label>
+                        <input name="kelas" defaultValue={editingItem?.kelas} placeholder="Contoh: X-1, XI-IPA" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
+                      </div>
                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Instagram</label>
+                        <input name="instagram" defaultValue={editingItem?.instagram} placeholder="Username tanpa @" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">No. WhatsApp</label>
+                        <input name="phone" defaultValue={editingItem?.phone} placeholder="08..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">TikTok</label>
+                        <input name="tiktok" defaultValue={editingItem?.tiktok} placeholder="Username tanpa @" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">YouTube</label>
+                        <input name="youtube" defaultValue={editingItem?.youtube} placeholder="Link Channel" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Tahun Bergabung</label>
+                        <input name="joinYear" defaultValue={editingItem?.joinYear} placeholder="Contoh: 2023" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Peralatan Favorit</label>
+                        <input name="favoriteGear" defaultValue={editingItem?.favoriteGear} placeholder="Contoh: Sony A7III" className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Bio / Tentang Saya</label>
+                      <textarea name="bio" defaultValue={editingItem?.bio} rows={3} placeholder="Ceritakan sedikit tentang anggota ini..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all resize-none" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Galeri Foto Unggulan</label>
+                      <div 
+                        onDragEnter={handleFeaturedPhotosDrag}
+                        onDragLeave={handleFeaturedPhotosDrag}
+                        onDragOver={handleFeaturedPhotosDrag}
+                        onDrop={handleFeaturedPhotosDrop}
+                        className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all ${featuredPhotosDragActive ? 'border-accent bg-accent/5' : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 hover:border-accent'}`}
+                      >
+                        <Upload className="w-6 h-6 text-zinc-400 mx-auto mb-2" />
+                        <p className="text-xs text-zinc-500 mb-2">Drag & drop foto ke sini, atau</p>
+                        <label className="cursor-pointer inline-block bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                          Pilih File
+                          <input type="file" multiple accept="image/*" className="hidden" onChange={handleFeaturedPhotosFileChange} />
+                        </label>
+                      </div>
+                      
+                      {featuredPhotosPreview.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-4">
+                          {featuredPhotosPreview.map((photo, index) => (
+                            <div key={index} className="relative group rounded-lg overflow-hidden aspect-video border border-zinc-200 dark:border-zinc-800">
+                              <img src={photo} alt={`Featured ${index}`} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button type="button" onClick={() => {
+                                  const newPhotos = [...featuredPhotosPreview];
+                                  newPhotos.splice(index, 1);
+                                  setFeaturedPhotosPreview(newPhotos);
+                                }} className="p-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-all">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Karya Individu (Portofolio)</label>
+                        <button 
+                          type="button" 
+                          onClick={() => setPortfolioItems([...portfolioItems, { id: Math.random().toString(36).substr(2, 9), title: '', link: '', thumbnailUrl: '', votes: 0 }])}
+                          className="text-accent text-xs font-bold flex items-center gap-1 hover:underline"
+                        >
+                          <Plus className="w-3 h-3" /> Tambah Karya
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {portfolioItems.map((item, index) => (
+                          <div key={item.id} className="p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl relative group">
+                            <button 
+                              type="button" 
+                              onClick={() => setPortfolioItems(portfolioItems.filter((_, i) => i !== index))}
+                              className="absolute -top-2 -right-2 p-1.5 bg-red-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <input 
+                                placeholder="Judul Karya" 
+                                value={item.title}
+                                onChange={(e) => {
+                                  const newItems = [...portfolioItems];
+                                  newItems[index].title = e.target.value;
+                                  setPortfolioItems(newItems);
+                                }}
+                                className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-accent"
+                              />
+                              <input 
+                                placeholder="Link Karya (YouTube/Drive)" 
+                                value={item.link}
+                                onChange={(e) => {
+                                  const newItems = [...portfolioItems];
+                                  newItems[index].link = e.target.value;
+                                  setPortfolioItems(newItems);
+                                }}
+                                className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-accent"
+                              />
+                              <input 
+                                placeholder="URL Thumbnail (Opsional)" 
+                                value={item.thumbnailUrl}
+                                onChange={(e) => {
+                                  const newItems = [...portfolioItems];
+                                  newItems[index].thumbnailUrl = e.target.value;
+                                  setPortfolioItems(newItems);
+                                }}
+                                className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-accent col-span-full"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        {portfolioItems.length === 0 && (
+                          <p className="text-[10px] text-zinc-400 text-center py-4 italic">Belum ada karya individu yang ditambahkan.</p>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Role Utama</label>
                         <input name="role" defaultValue={editingItem?.role} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Foto Profil</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Foto Profil (PNG Transparan)</label>
                         <div 
                           onDragEnter={handleDrag}
                           onDragLeave={handleDrag}
@@ -578,6 +856,55 @@ export default function Admin() {
         )}
       </AnimatePresence>
 
+      {/* Batch Add Modal */}
+      <AnimatePresence>
+        {isBatchModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsBatchModalOpen(false)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-2xl z-10 flex flex-col max-h-[90vh]"
+            >
+              <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">Batch Tambah Anggota</h2>
+                  <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">Format: Nama | Email | Role | Kelas</p>
+                </div>
+                <button onClick={() => setIsBatchModalOpen(false)} className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-2xl hover:rotate-90 transition-all duration-300">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-8 overflow-y-auto">
+                <textarea
+                  value={batchInput}
+                  onChange={(e) => setBatchInput(e.target.value)}
+                  placeholder="Contoh:&#10;Aghna Fatkhi | aghna1011@gmail.com | Anggota | XI-IPA&#10;Akhtarrafif | akhtar@gmail.com | Editor | X-1"
+                  className="w-full h-64 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all font-mono text-sm"
+                />
+                <div className="mt-6 flex gap-4">
+                  <button
+                    onClick={handleBatchAddMembers}
+                    disabled={!batchInput.trim() || loading}
+                    className="flex-1 bg-accent hover:bg-accent/90 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 transition-all disabled:opacity-50"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Proses Batch
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {deleteConfirm && (
@@ -598,8 +925,14 @@ export default function Admin() {
               <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Trash2 className="w-8 h-8" />
               </div>
-              <h2 className="text-2xl font-black mb-2 text-zinc-900 dark:text-white tracking-tight">Hapus Item?</h2>
-              <p className="text-zinc-500 dark:text-zinc-400 mb-8">Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus item ini dari database?</p>
+              <h2 className="text-2xl font-black mb-2 text-zinc-900 dark:text-white tracking-tight">
+                {deleteConfirm.all ? 'Hapus Semua?' : 'Hapus Item?'}
+              </h2>
+              <p className="text-zinc-500 dark:text-zinc-400 mb-8">
+                {deleteConfirm.all 
+                  ? 'Tindakan ini akan menghapus seluruh data anggota secara permanen. Anda tidak dapat membatalkan ini.'
+                  : 'Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus item ini dari database?'}
+              </p>
               
               <div className="flex gap-4">
                 <button
@@ -609,7 +942,13 @@ export default function Admin() {
                   Batal
                 </button>
                 <button
-                  onClick={handleDelete}
+                  onClick={() => {
+                    if (deleteConfirm.all) {
+                      handleDeleteAllMembers();
+                    } else {
+                      handleDelete();
+                    }
+                  }}
                   className="flex-1 px-6 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
                 >
                   Ya, Hapus

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '../firebase';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { auth, db } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Camera, Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
@@ -12,17 +13,37 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const checkMembershipAndNavigate = async (user: any) => {
+    if (user.email === 'aghna1011@gmail.com') {
+      navigate('/admin');
+      return;
+    }
+
+    try {
+      const q = query(collection(db, 'members'), where('email', '==', user.email));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        // User is not registered as a member
+        await signOut(auth);
+        setError('Email Anda belum terdaftar sebagai anggota. Silakan hubungi admin untuk mendaftar.');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.error("Error checking membership:", err);
+      setError('Terjadi kesalahan saat memeriksa status keanggotaan.');
+      await signOut(auth);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      if (email === 'aghna1011@gmail.com') {
-        navigate('/admin');
-      } else {
-        navigate('/dashboard');
-      }
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await checkMembershipAndNavigate(userCredential.user);
     } catch (err: any) {
       setError('Email atau password salah. Silakan coba lagi.');
       console.error(err);
@@ -37,11 +58,7 @@ export default function Login() {
     setError('');
     try {
       const result = await signInWithPopup(auth, provider);
-      if (result.user.email === 'aghna1011@gmail.com') {
-        navigate('/admin');
-      } else {
-        navigate('/dashboard');
-      }
+      await checkMembershipAndNavigate(result.user);
     } catch (err: any) {
       if (err.code === 'auth/popup-closed-by-user') {
         // User closed the popup, no need to show an error message

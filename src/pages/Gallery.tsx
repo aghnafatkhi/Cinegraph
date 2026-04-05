@@ -48,7 +48,12 @@ export default function Gallery() {
   );
 
   return (
-    <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
+    >
       <div className="max-w-7xl mx-auto">
         <header className="mb-16 text-center">
           <motion.div
@@ -131,16 +136,15 @@ export default function Gallery() {
                   hidden: { opacity: 0, y: 20 },
                   visible: { opacity: 1, y: 0 }
                 }}
-                transition={{ delay: index * 0.1 }}
                 className={cn(
                   "group bg-white dark:bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-zinc-200 dark:border-zinc-800 hover:border-accent/30 transition-all relative",
-                  viewMode === 'grid' ? "aspect-[4/5]" : "flex flex-col md:flex-row h-auto md:h-64"
+                  viewMode === 'grid' ? "aspect-[4/5]" : "flex flex-row h-auto md:h-64 items-center md:items-stretch"
                 )}
               >
                 {/* Image Section */}
                 <div className={cn(
-                  "relative overflow-hidden",
-                  viewMode === 'grid' ? "absolute inset-0" : "w-full md:w-80 h-64 md:h-full"
+                  "relative overflow-hidden shrink-0",
+                  viewMode === 'grid' ? "absolute inset-0" : "w-32 h-32 md:w-80 md:h-full m-4 md:m-0 rounded-2xl md:rounded-none"
                 )}>
                   <img
                     src={event.coverImage}
@@ -156,8 +160,8 @@ export default function Gallery() {
                 
                 {/* Content Section */}
                 <div className={cn(
-                  "relative h-full w-full",
-                  viewMode === 'grid' ? "absolute inset-0" : "flex-grow p-8 flex flex-col justify-center"
+                  "relative h-full w-full min-w-0",
+                  viewMode === 'grid' ? "absolute inset-0" : "flex-grow p-4 md:p-8 flex flex-col justify-center"
                 )}>
                   {viewMode === 'grid' ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-end p-8 md:p-12 text-center overflow-hidden">
@@ -184,7 +188,7 @@ export default function Gallery() {
                             
                             {event.googleDriveLink ? (
                               <a
-                                href={event.googleDriveLink}
+                                href={`/halaman-transisi.html?url=${encodeURIComponent(event.googleDriveLink)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 bg-accent hover:bg-white hover:text-accent text-white px-6 py-3 rounded-xl text-sm font-black transition-all active:scale-95 shadow-lg shadow-accent/20"
@@ -209,25 +213,26 @@ export default function Gallery() {
                           {new Date(event.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </span>
                       </div>
-                      <h3 className="text-2xl md:text-3xl font-black mb-4 leading-tight text-black dark:text-white group-hover:text-accent transition-colors duration-500">
+                      <h3 className="text-lg md:text-3xl font-black mb-2 md:mb-4 leading-tight text-black dark:text-white group-hover:text-accent transition-colors duration-500 truncate md:whitespace-normal">
                         {event.title}
                       </h3>
-                      <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6 line-clamp-2 leading-relaxed max-w-2xl">
+                      <p className="text-zinc-500 dark:text-zinc-400 text-xs md:text-sm mb-4 md:mb-6 line-clamp-2 md:line-clamp-2 leading-relaxed max-w-2xl hidden md:block">
                         {event.description || "Dokumentasi kegiatan sekolah oleh tim Cinegraph Nepal."}
                       </p>
                       
                       {event.googleDriveLink ? (
                         <a
-                          href={event.googleDriveLink}
+                          href={`/halaman-transisi.html?url=${encodeURIComponent(event.googleDriveLink)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="w-fit inline-flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-8 py-3 rounded-xl text-sm font-black transition-all active:scale-95 shadow-lg"
+                          className="w-fit inline-flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-4 md:px-8 py-2 md:py-3 rounded-xl text-xs md:text-sm font-black transition-all active:scale-95 shadow-lg"
                         >
-                          Lihat Galeri <ExternalLink className="w-4 h-4" />
+                          <span className="hidden md:inline">Lihat Galeri</span>
+                          <span className="md:hidden">Lihat</span> <ExternalLink className="w-3 h-3 md:w-4 md:h-4" />
                         </a>
                       ) : (
-                        <div className="w-fit text-zinc-500 text-xs font-bold uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800 py-2 px-4 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                          Galeri Belum Tersedia
+                        <div className="w-fit text-zinc-500 text-[10px] md:text-xs font-bold uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800 py-1 px-2 md:py-2 md:px-4 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                          Belum Tersedia
                         </div>
                       )}
                     </>
@@ -246,6 +251,6 @@ export default function Gallery() {
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

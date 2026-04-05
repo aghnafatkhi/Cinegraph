@@ -44,7 +44,12 @@ export default function Projects() {
     : projects.filter(p => p.category === activeCategory);
 
   return (
-    <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
+    >
       <div className="max-w-7xl mx-auto">
         <header className="mb-16 text-center">
           <motion.div
@@ -53,11 +58,11 @@ export default function Projects() {
             className="flex flex-col items-center gap-4"
           >
             <div className="bg-accent/10 border border-accent/20 px-4 py-1 rounded-full text-accent text-xs font-bold uppercase tracking-widest">
-              Showcase Karya
+              Karya Ekskul
             </div>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white">HASIL <span className="text-accent">PROJECT</span></h1>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">KARYA <span className="text-accent">EKSKUL</span></h1>
             <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-lg leading-relaxed">
-              Kumpulan karya video terbaik dari tim Cinegraph Nepal SMAN 1 Cileungsi.
+              Kumpulan karya video kolaborasi tim Cinegraph Nepal SMAN 1 Cileungsi.
             </p>
           </motion.div>
         </header>
@@ -106,7 +111,6 @@ export default function Projects() {
                 key={project.id}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
                 className="group relative bg-zinc-50 dark:bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-100 dark:border-zinc-800 hover:border-accent/50 transition-all shadow-xl hover:shadow-2xl"
               >
                 <div className="relative h-56 overflow-hidden">
@@ -217,7 +221,7 @@ export default function Projects() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 

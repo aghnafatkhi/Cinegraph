@@ -73,7 +73,11 @@ export default function Dashboard() {
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
-      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 800)));
+      if (featuredPhotos.length + files.length > 8) {
+        setMessage({ type: 'error', text: 'Maksimal 8 foto unggulan.' });
+        return;
+      }
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 600)));
       setFeaturedPhotos([...featuredPhotos, ...newPhotos]);
     }
   };
@@ -81,7 +85,11 @@ export default function Dashboard() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 800)));
+      if (featuredPhotos.length + files.length > 8) {
+        setMessage({ type: 'error', text: 'Maksimal 8 foto unggulan.' });
+        return;
+      }
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 600)));
       setFeaturedPhotos([...featuredPhotos, ...newPhotos]);
     }
   };

@@ -56,9 +56,8 @@ async function getCroppedImg(
     targetHeight
   );
 
-  // Compress slightly if jpeg, but we need png for transparency.
-  // We'll use png but the scaled down size will help.
-  return canvas.toDataURL('image/png');
+  // Compress to JPEG for smaller size to prevent 1MB Firestore limit issues
+  return canvas.toDataURL('image/jpeg', 0.7);
 }
 
 export default function ImageCropper({ imageSrc, onCropComplete, onCancel, aspectRatio = 1 }: ImageCropperProps) {

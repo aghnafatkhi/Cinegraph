@@ -301,7 +301,11 @@ export default function Admin() {
     setFeaturedPhotosDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
-      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 800)));
+      if (featuredPhotosPreview.length + files.length > 8) {
+        setMessage({ type: 'error', text: 'Maksimal 8 foto unggulan.' });
+        return;
+      }
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 600)));
       setFeaturedPhotosPreview([...featuredPhotosPreview, ...newPhotos]);
     }
   };
@@ -309,7 +313,11 @@ export default function Admin() {
   const handleFeaturedPhotosFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 800)));
+      if (featuredPhotosPreview.length + files.length > 8) {
+        setMessage({ type: 'error', text: 'Maksimal 8 foto unggulan.' });
+        return;
+      }
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 600)));
       setFeaturedPhotosPreview([...featuredPhotosPreview, ...newPhotos]);
     }
   };
@@ -499,7 +507,6 @@ export default function Admin() {
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div
-            onClick={() => setIsModalOpen(false)}
             className="absolute inset-0 bg-black/90 backdrop-blur-sm"
           />
           <div
@@ -914,7 +921,6 @@ export default function Admin() {
       {isBatchModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
           <div
-            onClick={() => setIsBatchModalOpen(false)}
             className="absolute inset-0 bg-black/90 backdrop-blur-sm"
           />
           <div
@@ -955,7 +961,6 @@ export default function Admin() {
       {deleteConfirm && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
           <div
-            onClick={() => setDeleteConfirm(null)}
             className="absolute inset-0 bg-black/90 backdrop-blur-sm"
           />
           <div
@@ -965,10 +970,10 @@ export default function Admin() {
                 <Trash2 className="w-8 h-8" />
               </div>
               <h2 className="text-2xl font-black mb-2 text-zinc-900 dark:text-white tracking-tight">
-                Hapus Item?
+                Hapus {deleteConfirm?.collection === 'members' ? 'Anggota' : deleteConfirm?.collection === 'events' ? 'Acara' : 'Project'}?
               </h2>
               <p className="text-zinc-500 dark:text-zinc-400 mb-8">
-                Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus item ini dari database?
+                Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus {deleteConfirm?.collection === 'members' ? 'anggota' : deleteConfirm?.collection === 'events' ? 'acara' : 'project'} ini dari database?
               </p>
               
               <div className="flex gap-4">

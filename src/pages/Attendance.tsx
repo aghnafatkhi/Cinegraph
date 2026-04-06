@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import { collection, addDoc, query, where, onSnapshot, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, orderBy, serverTimestamp, getDocs, limit, getDoc, doc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -73,15 +73,31 @@ export default function Attendance() {
         scanner.pause();
         
         try {
-          // Assuming the QR code contains the user ID
           const scannedUserId = decodedText;
+          // Fetch the user's name from the members or users collection
+          let userName = "Anggota (ID: " + scannedUserId.substring(0, 6) + ")";
           
-          // In a real app, you'd fetch the user's name from the members collection here
-          // For now, we'll just record the ID
+          // 1. Try to find in members collection (where uid is a field)
+          const memberQuery = query(
+            collection(db, 'members'),
+            where('uid', '==', scannedUserId),
+            limit(1)
+          );
+          const memberSnapshot = await getDocs(memberQuery);
+          
+          if (!memberSnapshot.empty) {
+            userName = memberSnapshot.docs[0].data().name;
+          } else {
+            // 2. Try to find in users collection (where uid is the document id)
+            const userDoc = await getDoc(doc(db, 'users', scannedUserId));
+            if (userDoc.exists()) {
+              userName = userDoc.data().displayName || userDoc.data().email || userName;
+            }
+          }
           
           await addDoc(collection(db, 'attendance'), {
             userId: scannedUserId,
-            userName: "Anggota " + scannedUserId.substring(0, 4), // Placeholder
+            userName: userName,
             timestamp: serverTimestamp(),
             status: 'Hadir'
           });

@@ -15,11 +15,13 @@ import Leaderboard from './pages/Leaderboard';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider } from './context/AuthContext';
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <ErrorBoundary>
+    <AuthProvider>
+      <ThemeProvider>
+        <ErrorBoundary>
         <Router>
           <div className="flex flex-col min-h-screen bg-white dark:bg-zinc-950 selection:bg-accent selection:text-white transition-colors duration-300">
             <Navbar />
@@ -42,5 +44,6 @@ export default function App() {
         </Router>
       </ErrorBoundary>
     </ThemeProvider>
+    </AuthProvider>
   );
 }

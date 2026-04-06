@@ -11,6 +11,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { resizeImage } from '../lib/imageUtils';
 import ImageCropper from '../components/ImageCropper';
+import { useAuth } from '../context/AuthContext';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -61,12 +62,10 @@ interface AttendanceRecord {
 }
 
 export default function Admin() {
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<'events' | 'projects' | 'members' | 'admins' | 'attendance'>('events');
   const [loading, setLoading] = useState(true);
-  const [authLoading, setAuthLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [user, setUser] = useState(auth.currentUser);
-  const [isAdminState, setIsAdminState] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -82,6 +81,7 @@ export default function Admin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
+  const [isResetSkillsModalOpen, setIsResetSkillsModalOpen] = useState(false);
   const [adminEmailInput, setAdminEmailInput] = useState('');
   const [batchInput, setBatchInput] = useState('');
   const [batchPreview, setBatchPreview] = useState<any[]>([]);
@@ -110,41 +110,12 @@ export default function Admin() {
   }, [editingItem]);
 
   useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged(async (u) => {
-      if (!u) {
-        if (!authLoading) navigate('/login');
-        setAuthLoading(false);
-        return;
-      }
+    if (!authLoading && !isAdmin) {
+      navigate('/login');
+      return;
+    }
 
-      setUser(u);
-      
-      // Check if user is admin via hardcoded email or Firestore
-      const isSuperAdmin = u.email === 'aghna1011@gmail.com';
-      let isFirestoreAdmin = false;
-      
-      try {
-        const userDoc = await getDocs(query(collection(db, 'users'), where('email', '==', u.email)));
-        if (!userDoc.empty) {
-          isFirestoreAdmin = userDoc.docs[0].data().role === 'admin';
-        }
-      } catch (err) {
-        console.error("Error checking admin status:", err);
-      }
-
-      if (!isSuperAdmin && !isFirestoreAdmin) {
-        if (!authLoading) navigate('/login');
-      } else {
-        setIsAdminState(true);
-      }
-      setAuthLoading(false);
-    });
-
-    return () => unsubscribeAuth();
-  }, [navigate, authLoading]);
-
-  useEffect(() => {
-    if (authLoading || !user || !isAdminState) return;
+    if (authLoading || !user || !isAdmin) return;
 
     setLoading(true);
 
@@ -191,18 +162,11 @@ export default function Admin() {
       unsubUsers();
       unsubAttendance();
     };
-  }, [user, authLoading, isAdminState]);
+  }, [user, authLoading, isAdmin, navigate]);
 
   const handleToggleAdmin = async (userId: string, currentRole: string) => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
-    const targetUser = users.find(u => u.id === userId);
     
-    if (targetUser?.email === 'aghna1011@gmail.com') {
-      setMessage({ type: 'error', text: 'Tidak dapat mengubah role super admin.' });
-      setTimeout(() => setMessage(null), 3000);
-      return;
-    }
-
     try {
       await updateDoc(doc(db, 'users', userId), { role: newRole });
       setMessage({ type: 'success', text: `Role berhasil diubah menjadi ${newRole}!` });
@@ -370,6 +334,24 @@ export default function Admin() {
     }
   };
 
+  const handleResetAllSkills = async () => {
+    setLoading(true);
+    try {
+      const membersSnap = await getDocs(collection(db, 'members'));
+      const updatePromises = membersSnap.docs.map(memberDoc => 
+        updateDoc(doc(db, 'members', memberDoc.id), { skills: [] })
+      );
+      await Promise.all(updatePromises);
+      setMessage({ type: 'success', text: `Berhasil menghapus skill dari ${membersSnap.size} anggota!` });
+      setIsResetSkillsModalOpen(false);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Gagal mereset skill: ' + err.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
   const parseBatchInput = (input: string) => {
     const lines = input.split('\n').filter(l => l.trim());
     return lines.map(line => {
@@ -516,6 +498,49 @@ export default function Admin() {
         />
       )}
 
+      {/* Reset Skills Modal */}
+      <AnimatePresence>
+        {isResetSkillsModalOpen && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center px-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsResetSkillsModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2.5rem] shadow-2xl"
+            >
+              <div className="bg-red-600/10 border border-red-600/20 p-4 rounded-2xl w-fit mx-auto mb-6">
+                <AlertCircle className="w-10 h-10 text-red-500" />
+              </div>
+              <h2 className="text-2xl font-black text-center mb-4 text-zinc-900 dark:text-white">Reset Semua Skill?</h2>
+              <p className="text-zinc-500 text-center mb-8">
+                Tindakan ini akan menghapus semua pilihan keahlian dari profil seluruh anggota. Anggota harus memilih ulang keahlian mereka.
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setIsResetSkillsModalOpen(false)}
+                  className="flex-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-bold py-4 rounded-xl transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleResetAllSkills}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-red-600/20"
+                >
+                  Ya, Reset
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="max-w-7xl mx-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
           <div>
@@ -525,6 +550,13 @@ export default function Admin() {
           <div className="flex flex-wrap gap-3 md:gap-4 w-full md:w-auto justify-start md:justify-end">
             {activeTab === 'members' && (
               <>
+                <button
+                  onClick={() => setIsResetSkillsModalOpen(true)}
+                  className="flex-1 md:flex-none bg-red-600/10 hover:bg-red-600/20 text-red-600 px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-red-600/20 text-xs md:text-sm"
+                >
+                  <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+                  Reset Semua Skill
+                </button>
                 <button
                   onClick={() => setIsBatchModalOpen(true)}
                   className="flex-1 md:flex-none bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-zinc-200 dark:border-zinc-800 text-xs md:text-sm"

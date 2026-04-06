@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { QrCode, ScanLine, CheckCircle2, AlertCircle, Clock, Calendar as CalendarIcon, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface AttendanceRecord {
   id: string;
@@ -16,30 +17,22 @@ interface AttendanceRecord {
 }
 
 export default function Attendance() {
-  const [user, setUser] = useState(auth.currentUser);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [authLoading, setAuthLoading] = useState(true);
   const [scanResult, setScanResult] = useState<{ success: boolean, message: string } | null>(null);
   const [recentScans, setRecentScans] = useState<AttendanceRecord[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged((u) => {
-      if (!u) {
-        if (!authLoading) {
-          navigate('/login');
-        }
-      } else {
-        setUser(u);
-        setIsAdmin(u.email === 'aghna1011@gmail.com');
-      }
-      setAuthLoading(false);
-      setLoading(false);
-    });
+    if (!authLoading && !user) {
+      navigate('/login');
+      return;
+    }
 
-    return () => unsubscribeAuth();
-  }, [navigate, authLoading]);
+    if (!authLoading) {
+      setLoading(false);
+    }
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
     if (isAdmin) {

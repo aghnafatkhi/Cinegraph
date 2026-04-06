@@ -24,6 +24,17 @@ const getRolePriority = (role: string) => {
   return 99; // Default for unknown roles
 };
 
+const ALL_SKILLS = [
+  'Cinematography', 
+  'Directing', 
+  'Editing', 
+  'Screenwriting', 
+  'Lighting', 
+  'Sound Design', 
+  'Production Design', 
+  'Color Grading'
+];
+
 interface PortfolioItem {
   title: string;
   link: string;
@@ -46,6 +57,7 @@ export default function Members() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -77,11 +89,15 @@ export default function Members() {
     return () => unsubscribe();
   }, []);
 
-  const filteredMembers = members.filter(member => 
-    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (member.kelas && member.kelas.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredMembers = members.filter(member => {
+    const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (member.kelas && member.kelas.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesSkill = !selectedSkill || (member.skills && member.skills.includes(selectedSkill));
+    
+    return matchesSearch && matchesSkill;
+  });
 
   return (
     <motion.div 
@@ -107,9 +123,9 @@ export default function Members() {
           </motion.div>
         </header>
 
-        {/* Search Bar */}
-        <div className="max-w-2xl mx-auto mb-16 relative">
-          <div className="relative group">
+        {/* Search & Filter Bar */}
+        <div className="max-w-4xl mx-auto mb-16 space-y-8">
+          <div className="relative group max-w-2xl mx-auto">
             <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-accent transition-colors" />
             <input
               type="text"
@@ -118,12 +134,41 @@ export default function Members() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full py-4 pl-14 pr-6 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all shadow-sm hover:shadow-md"
             />
+            {searchTerm && (
+              <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                {filteredMembers.length} Hasil
+              </div>
+            )}
           </div>
-          {searchTerm && (
-            <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400 uppercase tracking-widest">
-              {filteredMembers.length} Hasil
-            </div>
-          )}
+
+          {/* Skills Filter */}
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              onClick={() => setSelectedSkill(null)}
+              className={cn(
+                "px-4 py-2 rounded-full text-xs font-bold transition-all border",
+                selectedSkill === null 
+                  ? "bg-accent border-accent text-white shadow-lg shadow-accent/20" 
+                  : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-accent/50"
+              )}
+            >
+              Semua Keahlian
+            </button>
+            {ALL_SKILLS.map((skill) => (
+              <button
+                key={skill}
+                onClick={() => setSelectedSkill(selectedSkill === skill ? null : skill)}
+                className={cn(
+                  "px-4 py-2 rounded-full text-xs font-bold transition-all border",
+                  selectedSkill === skill 
+                    ? "bg-accent border-accent text-white shadow-lg shadow-accent/20" 
+                    : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-accent/50"
+                )}
+              >
+                {skill}
+              </button>
+            ))}
+          </div>
         </div>
 
         {loading ? (
@@ -200,4 +245,8 @@ export default function Members() {
       </div>
     </motion.div>
   );
+}
+
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
 }

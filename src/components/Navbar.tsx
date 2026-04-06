@@ -4,8 +4,8 @@ import { Camera, Menu, X, Film, Users, Image as ImageIcon, Home, User, Sun, Moon
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { auth } from '../firebase';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -14,7 +14,7 @@ function cn(...inputs: ClassValue[]) {
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [user, setUser] = useState(auth.currentUser);
+  const { user, isAdmin } = useAuth();
   const location = useLocation();
 
   const { theme, toggleTheme } = useTheme();
@@ -25,13 +25,8 @@ export default function Navbar() {
     };
     window.addEventListener('scroll', handleScroll);
     
-    const unsubscribe = auth.onAuthStateChanged((u) => {
-      setUser(u);
-    });
-
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      unsubscribe();
     };
   }, []);
 
@@ -44,7 +39,7 @@ export default function Navbar() {
     { name: 'Presensi', path: '/attendance', icon: <Camera className="w-4 h-4" /> },
   ];
 
-  if (user?.email === 'aghna1011@gmail.com') {
+  if (isAdmin) {
     navLinks.push({ name: 'Admin', path: '/admin', icon: <User className="w-4 h-4 text-accent" /> });
   }
 
@@ -103,11 +98,11 @@ export default function Navbar() {
             </button>
 
             <Link
-              to={user ? (user.email === 'aghna1011@gmail.com' ? '/admin' : '/dashboard') : '/login'}
+              to={user ? (isAdmin ? '/admin' : '/dashboard') : '/login'}
               className="bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-4 lg:px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all border border-zinc-800 dark:border-zinc-200 flex-shrink-0"
             >
               <User className="w-4 h-4" />
-              {user ? (user.email === 'aghna1011@gmail.com' ? 'Admin Panel' : 'Dashboard') : 'Login Anggota'}
+              {user ? (isAdmin ? 'Admin Panel' : 'Dashboard') : 'Login Anggota'}
             </Link>
           </div>
         </div>
@@ -130,36 +125,56 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Nav */}
-      {isOpen && (
-        <div className="md:hidden bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <div className="px-6 py-8 flex flex-col gap-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                onClick={() => setIsOpen(false)}
-                className={cn(
-                  'flex items-center gap-4 text-lg font-medium transition-colors',
-                  location.pathname === link.path 
-                    ? 'text-accent' 
-                    : 'text-zinc-600 dark:text-zinc-400'
-                )}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="md:hidden bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 overflow-hidden"
+          >
+            <div className="px-6 py-8 flex flex-col gap-6">
+              {navLinks.map((link, index) => (
+                <motion.div
+                  key={link.path}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Link
+                    to={link.path}
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      'flex items-center gap-4 text-lg font-medium transition-colors',
+                      location.pathname === link.path 
+                        ? 'text-accent' 
+                        : 'text-zinc-600 dark:text-zinc-400'
+                    )}
+                  >
+                    {link.icon}
+                    {link.name}
+                  </Link>
+                </motion.div>
+              ))}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: navLinks.length * 0.05 }}
               >
-                {link.icon}
-                {link.name}
-              </Link>
-            ))}
-            <Link
-              to={user ? (user.email === 'aghna1011@gmail.com' ? '/admin' : '/dashboard') : '/login'}
-              onClick={() => setIsOpen(false)}
-              className="bg-accent text-white px-6 py-4 rounded-2xl text-lg font-bold flex items-center gap-4 transition-all"
-            >
-              <User className="w-5 h-5" />
-              {user ? (user.email === 'aghna1011@gmail.com' ? 'Admin Panel' : 'Dashboard') : 'Login Anggota'}
-            </Link>
-          </div>
-        </div>
-      )}
+                <Link
+                  to={user ? (isAdmin ? '/admin' : '/dashboard') : '/login'}
+                  onClick={() => setIsOpen(false)}
+                  className="bg-accent text-white px-6 py-4 rounded-2xl text-lg font-bold flex items-center gap-4 transition-all"
+                >
+                  <User className="w-5 h-5" />
+                  {user ? (isAdmin ? 'Admin Panel' : 'Dashboard') : 'Login Anggota'}
+                </Link>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

@@ -19,45 +19,49 @@ export default function Login() {
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
       
-      const isSuperAdmin = user.email === 'aghna1011@gmail.com';
-      
       if (!userSnap.exists()) {
         await setDoc(userRef, {
           email: user.email,
-          role: isSuperAdmin ? 'admin' : 'user',
+          role: 'user',
           displayName: user.displayName || '',
           createdAt: new Date().toISOString()
         });
-      } else if (isSuperAdmin && userSnap.data().role !== 'admin') {
-        // Ensure super admin always has admin role
-        await setDoc(userRef, { role: 'admin' }, { merge: true });
       }
     } catch (err) {
       console.error("Error syncing user document:", err);
     }
 
-    if (user.email === 'aghna1011@gmail.com') {
-      navigate('/admin');
-      return;
-    }
-
     try {
+      // 1. Check if user is admin via Firestore 'users' collection or default email
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      const isAdmin = (userSnap.exists() && userSnap.data().role === 'admin') || 
+                      user.email === 'cinegraphnepalforever@gmail.com';
+
+      if (isAdmin) {
+        // Ensure the user document reflects the admin role if it's the default admin
+        if (user.email === 'cinegraphnepalforever@gmail.com' && (!userSnap.exists() || userSnap.data().role !== 'admin')) {
+          await setDoc(userRef, {
+            email: user.email,
+            role: 'admin',
+            displayName: user.displayName || 'Super Admin',
+            createdAt: userSnap.exists() ? userSnap.data().createdAt : new Date().toISOString()
+          }, { merge: true });
+        }
+        navigate('/admin');
+        return;
+      }
+
+      // 2. If not admin, check if user is registered as a member
       const q = query(collection(db, 'members'), where('email', '==', user.email));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        // User is not registered as a member
+        // User is not registered as a member and not an admin
         await signOut(auth);
         setError('Email Anda belum terdaftar sebagai anggota. Silakan hubungi admin untuk mendaftar.');
       } else {
-        // Check if user is admin via Firestore
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists() && userSnap.data().role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
-        }
+        navigate('/dashboard');
       }
     } catch (err) {
       console.error("Error checking membership:", err);

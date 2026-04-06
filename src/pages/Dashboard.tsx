@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { User, Briefcase, Award, Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, Image as ImageIcon, ExternalLink, Upload } from 'lucide-react';
 import ImageCropper from '../components/ImageCropper';
 import { resizeImage } from '../lib/imageUtils';
+import { useAuth } from '../context/AuthContext';
 
 interface Member {
   id: string;
@@ -28,9 +29,9 @@ interface Member {
 }
 
 export default function Dashboard() {
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
-  const [authLoading, setAuthLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const navigate = useNavigate();
@@ -90,59 +91,69 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        if (!authLoading) {
-          navigate('/login');
-        }
-        setAuthLoading(false);
-        return;
-      }
+    if (!authLoading && !user) {
+      navigate('/login');
+      return;
+    }
 
-      setAuthLoading(false);
+    if (authLoading || !user) return;
 
-      // Find member by UID or Email
-      const q = query(
-        collection(db, 'members'),
-        where('email', '==', user.email),
-        limit(1)
-      );
+    // Find member by UID or Email
+    const q = query(
+      collection(db, 'members'),
+      where('email', '==', user.email),
+      limit(1)
+    );
 
-      const unsubscribeMember = onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
-          const docData = snapshot.docs[0];
-          const data = { id: docData.id, ...docData.data() } as Member;
-          setMember(data);
-          setRole(data.role || '');
-          setKelas(data.kelas || '');
-          setPhotoUrl(data.photoUrl || '');
-          setInstagram(data.instagram || '');
-          setPhone(data.phone || '');
-          setSkills(data.skills || []);
-          setBio(data.bio || '');
-          setJoinYear(data.joinYear || '');
-          setTiktok(data.tiktok || '');
-          setYoutube(data.youtube || '');
-          setFavoriteGear(data.favoriteGear || '');
-          setFeaturedPhotos(data.featuredPhotos || []);
-          setVoteCount(data.voteCount || 0);
-
-          // Link UID if not already linked
-          if (!data.uid) {
-            updateDoc(doc(db, 'members', docData.id), { uid: user.uid });
+    const unsubscribeMember = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const docData = snapshot.docs[0];
+        const data = { id: docData.id, ...docData.data() } as Member;
+        
+        setMember(data);
+        
+        // Only initialize form state if it's currently empty/default
+        // This ensures we don't overwrite user's unsaved changes while still populating on first load
+        setLoading(prevLoading => {
+          if (prevLoading) {
+            setRole(data.role || '');
+            setKelas(data.kelas || '');
+            setPhotoUrl(data.photoUrl || '');
+            setInstagram(data.instagram || '');
+            setPhone(data.phone || '');
+            setSkills(Array.isArray(data.skills) ? data.skills : []);
+            setBio(data.bio || '');
+            setJoinYear(data.joinYear || '');
+            setTiktok(data.tiktok || '');
+            setYoutube(data.youtube || '');
+            setFavoriteGear(data.favoriteGear || '');
+            setFeaturedPhotos(Array.isArray(data.featuredPhotos) ? data.featuredPhotos : []);
           }
-        }
-        setLoading(false);
-      }, (error) => {
-        console.error("Error fetching member profile:", error);
-        setLoading(false);
-      });
+          return false;
+        });
+        
+        setVoteCount(data.voteCount || 0);
 
-      return () => unsubscribeMember();
+        // Link UID if not already linked
+        if (!data.uid) {
+          updateDoc(doc(db, 'members', docData.id), { uid: user.uid });
+        }
+      } else {
+        setLoading(false);
+      }
+    }, (error) => {
+      console.error("Error fetching member profile:", error);
+      setLoading(false);
     });
 
-    return () => unsubscribeAuth();
-  }, [navigate, authLoading]);
+    return () => unsubscribeMember();
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (!authLoading && !loading && isAdmin && !member) {
+      navigate('/admin');
+    }
+  }, [authLoading, loading, isAdmin, member, navigate]);
 
   const handleSave = async () => {
     if (!member) return;
@@ -180,7 +191,7 @@ export default function Dashboard() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center gap-4 transition-colors">
         <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
         <p className="text-zinc-500 font-medium">{authLoading ? 'Memeriksa autentikasi...' : 'Memuat dashboard...'}</p>
       </div>
@@ -189,18 +200,18 @@ export default function Dashboard() {
 
   if (!member) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 pt-20">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-10 rounded-[2.5rem] text-center shadow-2xl">
+      <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center px-6 pt-20 transition-colors">
+        <div className="max-w-md w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-10 rounded-[2.5rem] text-center shadow-2xl">
           <div className="bg-red-600/10 border border-red-600/20 p-4 rounded-2xl w-fit mx-auto mb-6">
             <AlertCircle className="w-10 h-10 text-red-500" />
           </div>
-          <h2 className="text-2xl font-black mb-4">Profil Tidak Ditemukan</h2>
+          <h2 className="text-2xl font-black mb-4 text-zinc-900 dark:text-white">Profil Tidak Ditemukan</h2>
           <p className="text-zinc-500 mb-8 leading-relaxed">
             Email Anda ({auth.currentUser?.email}) belum terdaftar sebagai anggota di sistem kami. 
             Silakan hubungi Admin untuk menambahkan profil Anda.
           </p>
           <div className="flex flex-col gap-4">
-            {auth.currentUser?.email === 'aghna1011@gmail.com' && (
+            {isAdmin && (
               <button
                 onClick={() => navigate('/admin')}
                 className="w-full bg-accent hover:bg-accent/90 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-accent/20"
@@ -211,7 +222,7 @@ export default function Dashboard() {
             )}
             <button
               onClick={() => auth.signOut()}
-              className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all"
+              className="w-full bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all"
             >
               <LogOut className="w-5 h-5" />
               Keluar
@@ -223,7 +234,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="bg-zinc-950 text-white min-h-screen pt-32 pb-20 px-6">
+    <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors">
       {/* Crop Modal */}
       {cropImageSrc && (
         <ImageCropper
@@ -240,11 +251,11 @@ export default function Dashboard() {
             <img
               src={photoUrl || 'https://picsum.photos/seed/user/200/200'}
               alt={member.name}
-              className="w-24 h-24 object-cover rounded-3xl border-4 border-zinc-900 shadow-2xl"
+              className="w-24 h-24 object-cover rounded-3xl border-4 border-zinc-100 dark:border-zinc-900 shadow-2xl"
               referrerPolicy="no-referrer"
             />
             <div>
-              <h1 className="text-3xl font-black tracking-tight">{member.name}</h1>
+              <h1 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">{member.name}</h1>
               <p className="text-accent font-bold uppercase tracking-widest text-sm">{member.role}</p>
             </div>
           </div>
@@ -259,7 +270,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => auth.signOut()}
-              className="bg-zinc-900 hover:bg-zinc-800 text-white px-6 py-4 rounded-xl font-bold flex items-center gap-3 transition-all border border-zinc-800"
+              className="bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-6 py-4 rounded-xl font-bold flex items-center gap-3 transition-all border border-zinc-200 dark:border-zinc-800"
             >
               <LogOut className="w-5 h-5" />
               Keluar
@@ -273,7 +284,7 @@ export default function Dashboard() {
             animate={{ opacity: 1, scale: 1 }}
             className={cn(
               "mb-10 p-6 rounded-2xl flex items-center gap-4 border",
-              message.type === 'success' ? "bg-green-600/10 border-green-600/20 text-green-500" : "bg-red-600/10 border-red-600/20 text-red-500"
+              message.type === 'success' ? "bg-green-600/10 border-green-600/20 text-green-600 dark:text-green-500" : "bg-red-600/10 border-red-600/20 text-red-600 dark:text-red-500"
             )}
           >
             {message.type === 'success' ? <CheckCircle2 className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
@@ -284,10 +295,10 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Left Column: Basic Info */}
           <div className="lg:col-span-1 space-y-10">
-            <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl">
+            <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-3xl">
               <div className="flex items-center gap-3 mb-8">
                 <User className="w-5 h-5 text-accent" />
-                <h3 className="text-lg font-bold">Informasi Dasar</h3>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Informasi Dasar</h3>
               </div>
               <div className="space-y-6">
                 <div className="space-y-2">
@@ -297,7 +308,7 @@ export default function Dashboard() {
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                     placeholder="Contoh: Editor, Kameramen"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -307,7 +318,7 @@ export default function Dashboard() {
                     value={kelas}
                     onChange={(e) => setKelas(e.target.value)}
                     placeholder="Contoh: X-1, XI-IPA"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -317,7 +328,7 @@ export default function Dashboard() {
                     value={instagram}
                     onChange={(e) => setInstagram(e.target.value)}
                     placeholder="Username tanpa @"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -327,7 +338,7 @@ export default function Dashboard() {
                     value={tiktok}
                     onChange={(e) => setTiktok(e.target.value)}
                     placeholder="Username tanpa @"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -337,7 +348,7 @@ export default function Dashboard() {
                     value={youtube}
                     onChange={(e) => setYoutube(e.target.value)}
                     placeholder="Link Channel YouTube"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -347,7 +358,7 @@ export default function Dashboard() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="08..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -357,7 +368,7 @@ export default function Dashboard() {
                     value={joinYear}
                     onChange={(e) => setJoinYear(e.target.value)}
                     placeholder="Contoh: 2023"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -367,7 +378,7 @@ export default function Dashboard() {
                     value={favoriteGear}
                     onChange={(e) => setFavoriteGear(e.target.value)}
                     placeholder="Contoh: Sony A7III, Lensa 50mm"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -377,88 +388,67 @@ export default function Dashboard() {
                     onChange={(e) => setBio(e.target.value)}
                     placeholder="Ceritakan sedikit tentang diri Anda..."
                     rows={4}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all resize-none"
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all resize-none"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl">
-              <div className="flex items-center gap-3 mb-8">
-                <Award className="w-5 h-5 text-accent" />
-                <h3 className="text-lg font-bold">Keahlian (Pilih 3)</h3>
-              </div>
-              <div className="space-y-4">
-                {['Cinematography', 'Directing', 'Editing', 'Screenwriting', 'Lighting', 'Sound Design', 'Production Design', 'Color Grading'].map((skill) => (
-                  <label key={skill} className="flex items-center gap-3 p-4 bg-zinc-950 border border-zinc-800 rounded-xl cursor-pointer hover:border-accent transition-all">
-                    <input
-                      type="checkbox"
-                      checked={skills.includes(skill)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          if (skills.length < 3) setSkills([...skills, skill]);
-                        } else {
-                          setSkills(skills.filter(s => s !== skill));
-                        }
-                      }}
-                      className="w-5 h-5 accent-accent"
-                    />
-                    <span className="font-medium">{skill}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl">
+            <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-3xl">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <ImageIcon className="w-5 h-5 text-accent" />
-                  <h3 className="text-lg font-bold">Galeri Foto Unggulan</h3>
+                  <Award className="w-5 h-5 text-accent" />
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Keahlian</h3>
                 </div>
+                <span className={cn(
+                  "text-xs font-bold px-2 py-1 rounded-md",
+                  skills.length === 3 ? "bg-accent/20 text-accent" : "bg-zinc-200 dark:bg-zinc-800 text-zinc-500"
+                )}>
+                  {skills.length}/3 Terpilih
+                </span>
               </div>
-              
-              <div 
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-                className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all mb-6 ${dragActive ? 'border-accent bg-accent/5' : 'border-zinc-800 bg-zinc-950 hover:border-accent/50'}`}
-              >
-                <Upload className="w-8 h-8 text-zinc-500 mx-auto mb-3" />
-                <p className="text-sm text-zinc-400 mb-2">Drag & drop foto ke sini, atau</p>
-                <label className="cursor-pointer inline-block bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">
-                  Pilih File
-                  <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} />
-                </label>
+              <div className="grid grid-cols-1 gap-3">
+                {['Cinematography', 'Directing', 'Editing', 'Screenwriting', 'Lighting', 'Sound Design', 'Production Design', 'Color Grading'].map((skill) => {
+                  const isSelected = skills.includes(skill);
+                  return (
+                    <button
+                      key={skill}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          setSkills(skills.filter(s => s !== skill));
+                        } else if (skills.length < 3) {
+                          setSkills([...skills, skill]);
+                        } else {
+                          setMessage({ type: 'error', text: 'Maksimal pilih 3 keahlian.' });
+                        }
+                      }}
+                      className={cn(
+                        "flex items-center justify-between p-4 rounded-xl border transition-all text-left",
+                        isSelected 
+                          ? "bg-accent/10 border-accent text-zinc-900 dark:text-white" 
+                          : "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-accent/50"
+                      )}
+                    >
+                      <span className="font-medium">{skill}</span>
+                      {isSelected ? (
+                        <CheckCircle2 className="w-5 h-5 text-accent" />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full border-2 border-zinc-200 dark:border-zinc-800" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {featuredPhotos.map((photo, index) => (
-                  <div key={index} className="relative group rounded-xl overflow-hidden aspect-video border border-zinc-800">
-                    <img src={photo} alt={`Featured ${index}`} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <button onClick={() => {
-                        const newPhotos = [...featuredPhotos];
-                        newPhotos.splice(index, 1);
-                        setFeaturedPhotos(newPhotos);
-                      }} className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {featuredPhotos.length === 0 && (
-                <p className="text-zinc-500 text-sm text-center py-4">Belum ada foto unggulan.</p>
-              )}
             </div>
           </div>
 
           {/* Right Column: Featured Gallery */}
           <div className="lg:col-span-2">
-            <div className="bg-zinc-900 border border-zinc-800 p-8 md:p-10 rounded-3xl h-full">
+            <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 md:p-10 rounded-3xl h-full">
               <div className="flex items-center gap-3 mb-10">
                 <ImageIcon className="w-5 h-5 text-accent" />
-                <h3 className="text-xl font-bold">Galeri Foto Unggulan</h3>
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Galeri Foto Unggulan</h3>
               </div>
               
               <div 
@@ -466,11 +456,11 @@ export default function Dashboard() {
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
-                className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all mb-6 ${dragActive ? 'border-accent bg-accent/5' : 'border-zinc-800 bg-zinc-950 hover:border-accent/50'}`}
+                className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all mb-6 ${dragActive ? 'border-accent bg-accent/5' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hover:border-accent/50'}`}
               >
-                <Upload className="w-8 h-8 text-zinc-500 mx-auto mb-3" />
-                <p className="text-sm text-zinc-400 mb-2">Drag & drop foto ke sini, atau</p>
-                <label className="cursor-pointer inline-block bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">
+                <Upload className="w-8 h-8 text-zinc-400 mx-auto mb-3" />
+                <p className="text-sm text-zinc-500 mb-2">Drag & drop foto ke sini, atau</p>
+                <label className="cursor-pointer inline-block bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">
                   Pilih File
                   <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} />
                 </label>
@@ -478,7 +468,7 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {featuredPhotos.map((photo, index) => (
-                  <div key={index} className="relative group rounded-xl overflow-hidden aspect-square border border-zinc-800">
+                  <div key={index} className="relative group rounded-xl overflow-hidden aspect-square border border-zinc-200 dark:border-zinc-800">
                     <img src={photo} alt={`Featured ${index}`} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <button onClick={() => {
@@ -493,9 +483,9 @@ export default function Dashboard() {
                 ))}
               </div>
               {featuredPhotos.length === 0 && (
-                <div className="text-center py-20 border-2 border-dashed border-zinc-800 rounded-[2rem]">
-                  <ImageIcon className="w-12 h-12 text-zinc-800 mx-auto mb-4" />
-                  <p className="text-zinc-600 font-medium">Belum ada foto unggulan.</p>
+                <div className="text-center py-20 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-[2rem]">
+                  <ImageIcon className="w-12 h-12 text-zinc-300 dark:text-zinc-800 mx-auto mb-4" />
+                  <p className="text-zinc-500 font-medium">Belum ada foto unggulan.</p>
                 </div>
               )}
             </div>

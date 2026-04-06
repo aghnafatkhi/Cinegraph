@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../firebase';
-import AdBanner from '../components/AdBanner';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Users } from 'lucide-react';
@@ -40,7 +39,7 @@ interface Member {
   instagram?: string;
   phone?: string;
   skills?: string[];
-  portfolio?: PortfolioItem[];
+  featuredPhotos?: string[];
 }
 
 export default function Members() {
@@ -148,7 +147,7 @@ export default function Members() {
                   <div className="relative h-[300px] w-full bg-[#F59E0B] overflow-hidden shrink-0">
                     {/* Black Bar */}
                     <div className="absolute left-0 top-0 bottom-0 w-20 bg-black z-10 flex items-center justify-center">
-                      <div className="text-white font-black text-5xl tracking-tight -rotate-90 whitespace-nowrap capitalize">
+                      <div className="text-white font-black text-5xl tracking-tight -rotate-90 whitespace-nowrap capitalize max-w-[280px] truncate">
                         {firstName}
                       </div>
                     </div>
@@ -170,17 +169,17 @@ export default function Members() {
                     <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-[#F59E0B]/10 dark:bg-[#F59E0B]/5"></div>
                     <div className="absolute left-10 -top-10 w-32 h-32 rounded-full bg-[#F59E0B]/10 dark:bg-[#F59E0B]/5"></div>
                     
-                    <div className="relative z-10 flex justify-between items-end h-full">
-                      <div className="flex flex-col justify-end">
-                        <h3 className="text-2xl font-black leading-none text-black dark:text-white mb-2 capitalize">
+                    <div className="relative z-10 flex justify-between items-end h-full w-full overflow-hidden">
+                      <div className="flex flex-col justify-end min-w-0 w-full">
+                        <h3 className="text-2xl font-black leading-none text-black dark:text-white mb-2 capitalize truncate w-full" title={member.name}>
                           {member.name}
                         </h3>
-                        <p className="text-[#F59E0B] font-bold text-sm mb-1 uppercase">{member.role}</p>
+                        <p className="text-[#F59E0B] font-bold text-sm mb-1 uppercase truncate">{member.role}</p>
                         {member.kelas && (
-                          <p className="text-zinc-500 dark:text-zinc-400 font-medium text-sm mb-2">{member.kelas}</p>
+                          <p className="text-zinc-500 dark:text-zinc-400 font-medium text-sm mb-2 truncate">{member.kelas}</p>
                         )}
                         {member.phone && (
-                          <p className="text-black dark:text-white font-black text-lg">{member.phone}</p>
+                          <p className="text-black dark:text-white font-black text-lg truncate">{member.phone}</p>
                         )}
                       </div>
                     </div>
@@ -199,7 +198,6 @@ export default function Members() {
           </div>
         )}
       </div>
-      <AdBanner />
     </motion.div>
   );
 }

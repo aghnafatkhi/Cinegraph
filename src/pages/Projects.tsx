@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import AdBanner from '../components/AdBanner';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, Film, X, Info, ExternalLink } from 'lucide-react';
 
@@ -214,7 +213,6 @@ export default function Projects() {
             </div>
           </div>
         )}
-      <AdBanner />
     </motion.div>
   );
 }

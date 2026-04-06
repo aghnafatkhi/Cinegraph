@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, 
-  Image as ImageIcon, Film, Users, Calendar, ExternalLink, X, Edit2, Upload, Link as LinkIcon
+  Image as ImageIcon, Film, Users, Calendar, ExternalLink, X, Edit2, Upload, Link as LinkIcon, Download
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -44,22 +44,47 @@ interface Member {
   portfolio?: { id: string, title: string, link: string, thumbnailUrl?: string, votes?: number }[];
 }
 
+interface UserProfile {
+  id: string;
+  email: string;
+  role: 'admin' | 'user';
+  displayName?: string;
+  createdAt?: string;
+}
+
+interface AttendanceRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  timestamp: any;
+  status: string;
+}
+
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState<'events' | 'projects' | 'members'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'projects' | 'members' | 'admins' | 'attendance'>('events');
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState(auth.currentUser);
+  const [isAdminState, setIsAdminState] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [attendanceFilterDate, setAttendanceFilterDate] = useState<string>('');
+  const [attendanceFilterStatus, setAttendanceFilterStatus] = useState<string>('Semua');
+  const [searchQuery, setSearchQuery] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const navigate = useNavigate();
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
+  const [adminEmailInput, setAdminEmailInput] = useState('');
   const [batchInput, setBatchInput] = useState('');
+  const [batchPreview, setBatchPreview] = useState<any[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<{ collection: string, id: string } | null>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -85,13 +110,32 @@ export default function Admin() {
   }, [editingItem]);
 
   useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged((u) => {
-      if (!u || u.email !== 'aghna1011@gmail.com') {
-        if (!authLoading) {
-          navigate('/login');
+    const unsubscribeAuth = auth.onAuthStateChanged(async (u) => {
+      if (!u) {
+        if (!authLoading) navigate('/login');
+        setAuthLoading(false);
+        return;
+      }
+
+      setUser(u);
+      
+      // Check if user is admin via hardcoded email or Firestore
+      const isSuperAdmin = u.email === 'aghna1011@gmail.com';
+      let isFirestoreAdmin = false;
+      
+      try {
+        const userDoc = await getDocs(query(collection(db, 'users'), where('email', '==', u.email)));
+        if (!userDoc.empty) {
+          isFirestoreAdmin = userDoc.docs[0].data().role === 'admin';
         }
+      } catch (err) {
+        console.error("Error checking admin status:", err);
+      }
+
+      if (!isSuperAdmin && !isFirestoreAdmin) {
+        if (!authLoading) navigate('/login');
       } else {
-        setUser(u);
+        setIsAdminState(true);
       }
       setAuthLoading(false);
     });
@@ -100,7 +144,7 @@ export default function Admin() {
   }, [navigate, authLoading]);
 
   useEffect(() => {
-    if (authLoading || !user || user.email !== 'aghna1011@gmail.com') return;
+    if (authLoading || !user || !isAdminState) return;
 
     setLoading(true);
 
@@ -122,9 +166,21 @@ export default function Admin() {
 
     const unsubMembers = onSnapshot(collection(db, 'members'), (snap) => {
       setMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Member[]);
-      setLoading(false);
     }, (error) => {
       console.error("Error fetching members:", error);
+    });
+
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
+      setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })) as UserProfile[]);
+    }, (error) => {
+      console.error("Error fetching users:", error);
+    });
+
+    const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc')), (snap) => {
+      setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() })) as AttendanceRecord[]);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching attendance:", error);
       setLoading(false);
     });
 
@@ -132,8 +188,68 @@ export default function Admin() {
       unsubEvents();
       unsubProjects();
       unsubMembers();
+      unsubUsers();
+      unsubAttendance();
     };
-  }, [user, authLoading]);
+  }, [user, authLoading, isAdminState]);
+
+  const handleToggleAdmin = async (userId: string, currentRole: string) => {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    const targetUser = users.find(u => u.id === userId);
+    
+    if (targetUser?.email === 'aghna1011@gmail.com') {
+      setMessage({ type: 'error', text: 'Tidak dapat mengubah role super admin.' });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'users', userId), { role: newRole });
+      setMessage({ type: 'success', text: `Role berhasil diubah menjadi ${newRole}!` });
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Gagal mengubah role: ' + err.message });
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  const exportAttendanceToCSV = () => {
+    const filteredAttendance = attendance.filter(a => {
+      const matchesSearch = a.userName.toLowerCase().includes(searchQuery.toLowerCase());
+      const date = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+      const matchesDate = !attendanceFilterDate || date.toISOString().split('T')[0] === attendanceFilterDate;
+      const matchesStatus = attendanceFilterStatus === 'Semua' || a.status === attendanceFilterStatus;
+      return matchesSearch && matchesDate && matchesStatus;
+    });
+
+    if (filteredAttendance.length === 0) {
+      setMessage({ type: 'error', text: 'Tidak ada data untuk diekspor.' });
+      return;
+    }
+
+    const headers = ['Nama', 'User ID', 'Waktu', 'Status'];
+    const rows = filteredAttendance.map(a => [
+      a.userName,
+      a.userId,
+      a.timestamp?.toDate ? a.timestamp.toDate().toLocaleString() : new Date(a.timestamp).toLocaleString(),
+      a.status
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `rekap_presensi_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleDelete = async () => {
     if (!deleteConfirm) return;
@@ -221,29 +337,71 @@ export default function Admin() {
     }
   };
 
-  const handleBatchAddMembers = async () => {
-    if (!batchInput.trim()) return;
+  const handleAddAdminByEmail = async () => {
+    if (!adminEmailInput.trim()) return;
     
     setLoading(true);
-    const lines = batchInput.split('\n').filter(l => l.trim());
+    try {
+      // Check if user already exists in 'users' collection
+      const q = query(collection(db, 'users'), where('email', '==', adminEmailInput.trim().toLowerCase()));
+      const snap = await getDocs(q);
+      
+      if (!snap.empty) {
+        const userDoc = snap.docs[0];
+        await updateDoc(doc(db, 'users', userDoc.id), { role: 'admin' });
+        setMessage({ type: 'success', text: `User ${adminEmailInput} sekarang menjadi admin!` });
+      } else {
+        // Create a placeholder user document
+        await addDoc(collection(db, 'users'), {
+          email: adminEmailInput.trim().toLowerCase(),
+          role: 'admin',
+          displayName: 'Pending Admin',
+          createdAt: new Date().toISOString()
+        });
+        setMessage({ type: 'success', text: `Admin ${adminEmailInput} berhasil ditambahkan! Mereka akan mendapatkan akses saat login.` });
+      }
+      setIsAddAdminModalOpen(false);
+      setAdminEmailInput('');
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Gagal menambahkan admin: ' + err.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  const parseBatchInput = (input: string) => {
+    const lines = input.split('\n').filter(l => l.trim());
+    return lines.map(line => {
+      const [name, email, role, kelas] = line.split('|').map(s => s.trim());
+      return { name, email, role: role || 'Anggota', kelas: kelas || '' };
+    }).filter(m => m.name && m.email);
+  };
+
+  useEffect(() => {
+    setBatchPreview(parseBatchInput(batchInput));
+  }, [batchInput]);
+
+  const handleBatchAddMembers = async () => {
+    const membersToAdd = batchPreview;
+    if (membersToAdd.length === 0) return;
+    
+    setLoading(true);
     let added = 0;
     let skipped = 0;
     
     try {
-      for (const line of lines) {
-        const [name, email, role, kelas] = line.split('|').map(s => s.trim());
-        if (!name || !email) continue;
-
-        const q = query(collection(db, 'members'), where('email', '==', email));
+      for (const member of membersToAdd) {
+        const q = query(collection(db, 'members'), where('email', '==', member.email));
         const snap = await getDocs(q);
         
         if (snap.empty) {
           await addDoc(collection(db, 'members'), {
-            name,
-            email,
-            role: role || 'Anggota',
-            kelas: kelas || '',
-            photoUrl: `https://picsum.photos/seed/${encodeURIComponent(name)}/200/200`
+            name: member.name,
+            email: member.email,
+            role: member.role,
+            kelas: member.kelas,
+            photoUrl: `https://picsum.photos/seed/${encodeURIComponent(member.name)}/200/200`
           });
           added++;
         } else {
@@ -305,7 +463,7 @@ export default function Admin() {
         setMessage({ type: 'error', text: 'Maksimal 8 foto unggulan.' });
         return;
       }
-      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 600)));
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 1600)));
       setFeaturedPhotosPreview([...featuredPhotosPreview, ...newPhotos]);
     }
   };
@@ -317,7 +475,7 @@ export default function Admin() {
         setMessage({ type: 'error', text: 'Maksimal 8 foto unggulan.' });
         return;
       }
-      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 600)));
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 1600)));
       setFeaturedPhotosPreview([...featuredPhotosPreview, ...newPhotos]);
     }
   };
@@ -359,7 +517,7 @@ export default function Admin() {
       )}
 
       <div className="max-w-7xl mx-auto">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
           <div>
             <h1 className="text-4xl font-black tracking-tighter mb-2 text-zinc-900 dark:text-white">PANEL <span className="text-accent">ADMIN</span></h1>
             <p className="text-zinc-500 dark:text-zinc-500">Kelola konten website Cinegraph Nepal secara langsung.</p>
@@ -376,17 +534,28 @@ export default function Admin() {
                 </button>
               </>
             )}
-            <button
-              onClick={() => {
-                setEditingItem(null);
-                setPreviewUrl('');
-                setIsModalOpen(true);
-              }}
-              className="flex-1 md:flex-none bg-accent hover:bg-accent/90 text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-accent/20 text-xs md:text-sm"
-            >
-              <Plus className="w-4 h-4 md:w-5 md:h-5" />
-              Tambah {activeTab === 'events' ? 'Acara' : activeTab === 'projects' ? 'Project' : 'Anggota'}
-            </button>
+            {activeTab === 'admins' && (
+              <button
+                onClick={() => setIsAddAdminModalOpen(true)}
+                className="flex-1 md:flex-none bg-accent hover:bg-accent/90 text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-accent/20 text-xs md:text-sm"
+              >
+                <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                Tambah Admin
+              </button>
+            )}
+            {activeTab !== 'admins' && activeTab !== 'attendance' && (
+              <button
+                onClick={() => {
+                  setEditingItem(null);
+                  setPreviewUrl('');
+                  setIsModalOpen(true);
+                }}
+                className="flex-1 md:flex-none bg-accent hover:bg-accent/90 text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-accent/20 text-xs md:text-sm"
+              >
+                <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                Tambah {activeTab === 'events' ? 'Acara' : activeTab === 'projects' ? 'Project' : 'Anggota'}
+              </button>
+            )}
             <button
               onClick={() => auth.signOut()}
               className="flex-1 md:flex-none bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-zinc-200 dark:border-zinc-800 text-xs md:text-sm"
@@ -396,6 +565,31 @@ export default function Admin() {
             </button>
           </div>
         </header>
+
+        {/* Stats Section */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+          <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Acara</p>
+            <p className="text-3xl font-black text-zinc-900 dark:text-white">{events.length}</p>
+          </div>
+          <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Project</p>
+            <p className="text-3xl font-black text-zinc-900 dark:text-white">{projects.length}</p>
+          </div>
+          <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Anggota</p>
+            <p className="text-3xl font-black text-zinc-900 dark:text-white">{members.length}</p>
+          </div>
+          <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Kehadiran Hari Ini</p>
+            <p className="text-3xl font-black text-zinc-900 dark:text-white">
+              {attendance.filter(a => {
+                const date = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+                return date.toDateString() === new Date().toDateString();
+              }).length}
+            </p>
+          </div>
+        </div>
 
         {message && (
           <motion.div
@@ -413,9 +607,9 @@ export default function Admin() {
         )}
 
         {/* Tabs */}
-        <div className="flex flex-wrap md:flex-nowrap gap-2 mb-12 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl w-full md:w-fit mx-auto md:mx-0">
+        <div className="flex flex-wrap md:flex-nowrap gap-2 mb-8 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl w-full md:w-fit mx-auto md:mx-0">
           <button
-            onClick={() => setActiveTab('events')}
+            onClick={() => { setActiveTab('events'); setSearchQuery(''); }}
             className={cn(
               "flex-1 md:flex-none px-4 md:px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center justify-center gap-2",
               activeTab === 'events' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
@@ -424,7 +618,7 @@ export default function Admin() {
             <Calendar className="w-4 h-4 shrink-0" /> Galeri Acara
           </button>
           <button
-            onClick={() => setActiveTab('projects')}
+            onClick={() => { setActiveTab('projects'); setSearchQuery(''); }}
             className={cn(
               "flex-1 md:flex-none px-4 md:px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center justify-center gap-2",
               activeTab === 'projects' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
@@ -433,7 +627,7 @@ export default function Admin() {
             <Film className="w-4 h-4 shrink-0" /> Project Video
           </button>
           <button
-            onClick={() => setActiveTab('members')}
+            onClick={() => { setActiveTab('members'); setSearchQuery(''); }}
             className={cn(
               "flex-1 md:flex-none px-4 md:px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center justify-center gap-2",
               activeTab === 'members' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
@@ -441,11 +635,42 @@ export default function Admin() {
           >
             <Users className="w-4 h-4 shrink-0" /> Daftar Anggota
           </button>
+          <button
+            onClick={() => { setActiveTab('attendance'); setSearchQuery(''); }}
+            className={cn(
+              "flex-1 md:flex-none px-4 md:px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center justify-center gap-2",
+              activeTab === 'attendance' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+            )}
+          >
+            <CheckCircle2 className="w-4 h-4 shrink-0" /> Kehadiran
+          </button>
+          <button
+            onClick={() => { setActiveTab('admins'); setSearchQuery(''); }}
+            className={cn(
+              "flex-1 md:flex-none px-4 md:px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center justify-center gap-2",
+              activeTab === 'admins' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+            )}
+          >
+            <Edit2 className="w-4 h-4 shrink-0" /> Kelola Admin
+          </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-12">
+          <div className="relative max-w-md">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={`Cari di ${activeTab === 'events' ? 'acara' : activeTab === 'projects' ? 'project' : activeTab === 'members' ? 'anggota' : activeTab === 'attendance' ? 'kehadiran' : 'admin'}...`}
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 px-6 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all shadow-sm"
+            />
+          </div>
         </div>
 
         {/* Content Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {activeTab === 'events' && events.map(event => (
+          {activeTab === 'events' && events.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase())).map(event => (
             <div key={event.id} className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden group shadow-sm hover:shadow-xl transition-all">
               <div className="h-40 relative">
                 <img src={event.coverImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -461,7 +686,7 @@ export default function Admin() {
             </div>
           ))}
 
-          {activeTab === 'projects' && projects.map(project => (
+          {activeTab === 'projects' && projects.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase())).map(project => (
             <div key={project.id} className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden group shadow-sm hover:shadow-xl transition-all">
               <div className="h-40 relative">
                 <img src={project.thumbnailUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -477,7 +702,7 @@ export default function Admin() {
             </div>
           ))}
 
-          {activeTab === 'members' && members.map(member => (
+          {activeTab === 'members' && members.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) || m.email.toLowerCase().includes(searchQuery.toLowerCase())).map(member => (
             <div key={member.id} className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 flex items-center gap-4 group shadow-sm hover:shadow-xl transition-all">
               <img src={member.photoUrl} className="w-16 h-16 rounded-2xl object-cover border-2 border-white dark:border-zinc-800" referrerPolicy="no-referrer" />
               <div className="flex-grow min-w-0">
@@ -490,12 +715,139 @@ export default function Admin() {
               </div>
             </div>
           ))}
+
+          {activeTab === 'attendance' && (
+            <div className="col-span-full space-y-6">
+              {/* Filters & Export */}
+              <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-zinc-50 dark:bg-zinc-900 p-6 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Filter Tanggal</label>
+                    <input 
+                      type="date" 
+                      value={attendanceFilterDate}
+                      onChange={(e) => setAttendanceFilterDate(e.target.value)}
+                      className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-accent transition-all"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Filter Status</label>
+                    <select 
+                      value={attendanceFilterStatus}
+                      onChange={(e) => setAttendanceFilterStatus(e.target.value)}
+                      className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-accent transition-all font-bold"
+                    >
+                      <option value="Semua">Semua Status</option>
+                      <option value="Hadir">Hadir</option>
+                      <option value="Izin">Izin</option>
+                      <option value="Sakit">Sakit</option>
+                    </select>
+                  </div>
+                  {(attendanceFilterDate || attendanceFilterStatus !== 'Semua') && (
+                    <button 
+                      onClick={() => { setAttendanceFilterDate(''); setAttendanceFilterStatus('Semua'); }}
+                      className="mt-5 text-xs font-bold text-accent hover:underline"
+                    >
+                      Reset Filter
+                    </button>
+                  )}
+                </div>
+                
+                <button 
+                  onClick={exportAttendanceToCSV}
+                  className="w-full md:w-auto flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-6 py-3 rounded-xl text-sm font-black transition-all active:scale-95 shadow-lg"
+                >
+                  <Download className="w-4 h-4" /> Ekspor CSV
+                </button>
+              </div>
+
+              <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Nama Anggota</th>
+                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Waktu</th>
+                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
+                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendance.filter(a => {
+                        const matchesSearch = a.userName.toLowerCase().includes(searchQuery.toLowerCase());
+                        const date = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+                        const matchesDate = !attendanceFilterDate || date.toISOString().split('T')[0] === attendanceFilterDate;
+                        const matchesStatus = attendanceFilterStatus === 'Semua' || a.status === attendanceFilterStatus;
+                        return matchesSearch && matchesDate && matchesStatus;
+                      }).map(record => (
+                        <tr key={record.id} className="border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 transition-colors">
+                        <td className="px-8 py-5">
+                          <p className="font-bold text-zinc-900 dark:text-white">{record.userName}</p>
+                          <p className="text-[10px] text-zinc-500">{record.userId}</p>
+                        </td>
+                        <td className="px-8 py-5">
+                          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                            {record.timestamp?.toDate ? record.timestamp.toDate().toLocaleString() : new Date(record.timestamp).toLocaleString()}
+                          </p>
+                        </td>
+                        <td className="px-8 py-5">
+                          <span className="px-3 py-1 bg-green-500/10 text-green-500 text-[10px] font-black uppercase tracking-widest rounded-full">
+                            {record.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <button 
+                            onClick={() => setDeleteConfirm({ collection: 'attendance', id: record.id })}
+                            className="p-2 text-zinc-400 hover:text-red-500 transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          )}
+
+          {activeTab === 'admins' && users.filter(u => u.email.toLowerCase().includes(searchQuery.toLowerCase()) || (u.displayName || '').toLowerCase().includes(searchQuery.toLowerCase())).map(u => (
+            <div key={u.id} className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 flex items-center gap-4 group shadow-sm hover:shadow-xl transition-all">
+              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent font-black text-xl">
+                {u.email[0].toUpperCase()}
+              </div>
+              <div className="flex-grow min-w-0">
+                <h3 className="font-bold truncate text-zinc-900 dark:text-white">{u.displayName || 'User'}</h3>
+                <p className="text-zinc-500 text-xs truncate">{u.email}</p>
+                <span className={cn(
+                  "inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter mt-1",
+                  u.role === 'admin' ? "bg-accent text-white" : "bg-zinc-200 dark:bg-zinc-800 text-zinc-500"
+                )}>
+                  {u.role}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => handleToggleAdmin(u.id, u.role)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                    u.role === 'admin' ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300" : "bg-accent text-white hover:bg-accent/90"
+                  )}
+                >
+                  {u.role === 'admin' ? 'Revoke Admin' : 'Make Admin'}
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Empty State */}
         {((activeTab === 'events' && events.length === 0) || 
           (activeTab === 'projects' && projects.length === 0) || 
-          (activeTab === 'members' && members.length === 0)) && (
+          (activeTab === 'members' && members.length === 0) ||
+          (activeTab === 'attendance' && attendance.length === 0) ||
+          (activeTab === 'admins' && users.length === 0)) && (
           <div className="text-center py-20 border-2 border-dashed border-zinc-200 dark:border-zinc-900 rounded-[3rem]">
             <Plus className="w-12 h-12 text-zinc-300 dark:text-zinc-800 mx-auto mb-4" />
             <p className="text-zinc-500">Belum ada data. Klik tombol tambah untuk memulai.</p>
@@ -717,8 +1069,19 @@ export default function Admin() {
                       <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Bio / Tentang Saya</label>
                       <textarea name="bio" defaultValue={editingItem?.bio} rows={3} placeholder="Ceritakan sedikit tentang anggota ini..." className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all resize-none" />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Galeri Foto Unggulan</label>
+                    <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Galeri Foto Unggulan</label>
+                        <button 
+                          type="button" 
+                          onClick={() => document.getElementById('featured-photos-input')?.click()}
+                          className="text-accent text-xs font-bold flex items-center gap-1 hover:underline"
+                        >
+                          <Plus className="w-3 h-3" /> Tambah Foto
+                        </button>
+                        <input type="file" id="featured-photos-input" multiple accept="image/*" className="hidden" onChange={handleFeaturedPhotosFileChange} />
+                      </div>
+                      
                       <div 
                         onDragEnter={handleFeaturedPhotosDrag}
                         onDragLeave={handleFeaturedPhotosDrag}
@@ -727,11 +1090,7 @@ export default function Admin() {
                         className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all ${featuredPhotosDragActive ? 'border-accent bg-accent/5' : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 hover:border-accent'}`}
                       >
                         <Upload className="w-6 h-6 text-zinc-400 mx-auto mb-2" />
-                        <p className="text-xs text-zinc-500 mb-2">Drag & drop foto ke sini, atau</p>
-                        <label className="cursor-pointer inline-block bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
-                          Pilih File
-                          <input type="file" multiple accept="image/*" className="hidden" onChange={handleFeaturedPhotosFileChange} />
-                        </label>
+                        <p className="text-xs text-zinc-500 mb-2">Drag & drop foto ke sini</p>
                       </div>
                       
                       {featuredPhotosPreview.length > 0 && (
@@ -752,100 +1111,6 @@ export default function Admin() {
                           ))}
                         </div>
                       )}
-                    </div>
-
-                    <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Keahlian (Skills)</label>
-                        <button 
-                          type="button" 
-                          onClick={() => setMemberSkills([...memberSkills, ''])}
-                          className="text-accent text-xs font-bold flex items-center gap-1 hover:underline"
-                        >
-                          <Plus className="w-3 h-3" /> Tambah Skill
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {memberSkills.map((skill, index) => (
-                          <div key={index} className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1.5">
-                            <input 
-                              value={skill}
-                              onChange={(e) => {
-                                const newSkills = [...memberSkills];
-                                newSkills[index] = e.target.value;
-                                setMemberSkills(newSkills);
-                              }}
-                              className="bg-transparent border-none focus:outline-none text-xs w-24"
-                              placeholder="Skill..."
-                            />
-                            <button type="button" onClick={() => setMemberSkills(memberSkills.filter((_, i) => i !== index))} className="text-zinc-400 hover:text-red-500">
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Karya Individu (Portofolio)</label>
-                        <button 
-                          type="button" 
-                          onClick={() => setPortfolioItems([...portfolioItems, { id: Math.random().toString(36).substr(2, 9), title: '', link: '', thumbnailUrl: '', votes: 0 }])}
-                          className="text-accent text-xs font-bold flex items-center gap-1 hover:underline"
-                        >
-                          <Plus className="w-3 h-3" /> Tambah Karya
-                        </button>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        {portfolioItems.map((item, index) => (
-                          <div key={item.id} className="p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl relative group">
-                            <button 
-                              type="button" 
-                              onClick={() => setPortfolioItems(portfolioItems.filter((_, i) => i !== index))}
-                              className="absolute -top-2 -right-2 p-1.5 bg-red-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <input 
-                                placeholder="Judul Karya" 
-                                value={item.title}
-                                onChange={(e) => {
-                                  const newItems = [...portfolioItems];
-                                  newItems[index].title = e.target.value;
-                                  setPortfolioItems(newItems);
-                                }}
-                                className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-accent"
-                              />
-                              <input 
-                                placeholder="Link Karya (YouTube/Drive)" 
-                                value={item.link}
-                                onChange={(e) => {
-                                  const newItems = [...portfolioItems];
-                                  newItems[index].link = e.target.value;
-                                  setPortfolioItems(newItems);
-                                }}
-                                className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-accent"
-                              />
-                              <input 
-                                placeholder="URL Thumbnail (Opsional)" 
-                                value={item.thumbnailUrl}
-                                onChange={(e) => {
-                                  const newItems = [...portfolioItems];
-                                  newItems[index].thumbnailUrl = e.target.value;
-                                  setPortfolioItems(newItems);
-                                }}
-                                className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-accent col-span-full"
-                              />
-                            </div>
-                          </div>
-                        ))}
-                        {portfolioItems.length === 0 && (
-                          <p className="text-[10px] text-zinc-400 text-center py-4 italic">Belum ada karya individu yang ditambahkan.</p>
-                        )}
-                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -920,42 +1185,131 @@ export default function Admin() {
       {/* Batch Add Modal */}
       {isBatchModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
-          <div
-            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
-          />
-          <div
-            className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-2xl z-10 flex flex-col max-h-[90vh]"
-          >
-              <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">Batch Tambah Anggota</h2>
-                  <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">Format: Nama | Email | Role | Kelas</p>
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsBatchModalOpen(false)} />
+          <div className="relative w-full max-w-4xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] shadow-2xl z-10 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-100 dark:border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent">
+                  <Users className="w-6 h-6" />
                 </div>
-                <button onClick={() => setIsBatchModalOpen(false)} className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-2xl hover:rotate-90 transition-all duration-300">
-                  <X className="w-6 h-6" />
-                </button>
+                <div>
+                  <h2 className="text-xl font-black text-zinc-900 dark:text-white">Batch Tambah Anggota</h2>
+                  <p className="text-xs text-zinc-500">Impor banyak anggota sekaligus dengan format teks.</p>
+                </div>
               </div>
-              <div className="p-8 overflow-y-auto">
+              <button onClick={() => setIsBatchModalOpen(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all text-zinc-900 dark:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className="flex-grow overflow-hidden flex flex-col md:flex-row">
+              {/* Input Section */}
+              <div className="flex-1 p-6 border-r border-zinc-100 dark:border-zinc-800 overflow-y-auto">
+                <div className="mb-4">
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 block mb-2">Format Input</label>
+                  <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 text-[10px] font-mono text-zinc-600 dark:text-zinc-400">
+                    Nama | Email | Role | Kelas
+                  </div>
+                  <button 
+                    onClick={() => setBatchInput("Aghna | aghna@example.com | Ketua | XII-IPA\nBudi | budi@example.com | Anggota | XI-IPS")}
+                    className="mt-2 text-[10px] text-accent font-bold hover:underline"
+                  >
+                    Gunakan Contoh
+                  </button>
+                </div>
                 <textarea
                   value={batchInput}
                   onChange={(e) => setBatchInput(e.target.value)}
-                  placeholder="Contoh:&#10;Aghna Fatkhi | aghna1011@gmail.com | Anggota | XI-IPA&#10;Akhtarrafif | akhtar@gmail.com | Editor | X-1"
-                  className="w-full h-64 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all font-mono text-sm"
+                  placeholder="Contoh:&#10;Aghna | aghna@example.com | Ketua | XII-IPA&#10;Budi | budi@example.com | Anggota | XI-IPS"
+                  className="w-full h-64 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all font-mono text-sm resize-none"
                 />
-                <div className="mt-6 flex gap-4">
-                  <button
-                    onClick={handleBatchAddMembers}
-                    disabled={!batchInput.trim() || loading}
-                    className="flex-1 bg-accent hover:bg-accent/90 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 transition-all disabled:opacity-50"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Proses Batch
-                  </button>
+              </div>
+
+              {/* Preview Section */}
+              <div className="flex-1 p-6 bg-zinc-50/50 dark:bg-zinc-950/50 overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Preview ({batchPreview.length})</label>
+                  {batchPreview.length > 0 && <span className="text-[10px] bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full font-bold uppercase">Valid</span>}
+                </div>
+                
+                <div className="space-y-2">
+                  {batchPreview.length > 0 ? (
+                    batchPreview.map((m, i) => (
+                      <div key={i} className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 flex items-center gap-3 shadow-sm">
+                        <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent font-bold text-xs">
+                          {m.name[0]}
+                        </div>
+                        <div className="min-w-0 flex-grow">
+                          <p className="text-xs font-bold truncate text-zinc-900 dark:text-white">{m.name}</p>
+                          <p className="text-[10px] text-zinc-500 truncate">{m.email}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-accent">{m.role}</p>
+                          <p className="text-[10px] text-zinc-400">{m.kelas}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="h-64 flex flex-col items-center justify-center text-zinc-400 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl">
+                      <Users className="w-8 h-8 mb-2 opacity-20" />
+                      <p className="text-xs">Data akan muncul di sini</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
+
+            <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-3 bg-white dark:bg-zinc-900">
+              <button onClick={() => setIsBatchModalOpen(false)} className="px-6 py-3 rounded-xl font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all text-sm">Batal</button>
+              <button
+                onClick={handleBatchAddMembers}
+                disabled={batchPreview.length === 0 || loading}
+                className="bg-accent hover:bg-accent/90 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-accent/20 text-sm flex items-center gap-2"
+              >
+                {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+                Proses Impor
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Add Admin Modal */}
+      {isAddAdminModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsAddAdminModalOpen(false)} />
+          <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] shadow-2xl z-10 p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-black text-zinc-900 dark:text-white">Tambah Admin Baru</h2>
+              <button onClick={() => setIsAddAdminModalOpen(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all text-zinc-900 dark:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Email Admin</label>
+                <input 
+                  type="email" 
+                  value={adminEmailInput}
+                  onChange={(e) => setAdminEmailInput(e.target.value)}
+                  placeholder="contoh@gmail.com"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" 
+                />
+                <p className="text-[10px] text-zinc-500 italic">User akan otomatis menjadi admin saat mereka login dengan email ini.</p>
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => setIsAddAdminModalOpen(false)} className="flex-1 py-3 rounded-xl font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all text-sm">Batal</button>
+                <button
+                  onClick={handleAddAdminByEmail}
+                  disabled={!adminEmailInput || loading}
+                  className="flex-1 bg-accent hover:bg-accent/90 disabled:opacity-50 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-accent/20 text-sm flex items-center justify-center gap-2"
+                >
+                  {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Tambah Admin
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
@@ -970,10 +1324,10 @@ export default function Admin() {
                 <Trash2 className="w-8 h-8" />
               </div>
               <h2 className="text-2xl font-black mb-2 text-zinc-900 dark:text-white tracking-tight">
-                Hapus {deleteConfirm?.collection === 'members' ? 'Anggota' : deleteConfirm?.collection === 'events' ? 'Acara' : 'Project'}?
+                Hapus {deleteConfirm?.collection === 'members' ? 'Anggota' : deleteConfirm?.collection === 'events' ? 'Acara' : deleteConfirm?.collection === 'attendance' ? 'Catatan Kehadiran' : 'Project'}?
               </h2>
               <p className="text-zinc-500 dark:text-zinc-400 mb-8">
-                Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus {deleteConfirm?.collection === 'members' ? 'anggota' : deleteConfirm?.collection === 'events' ? 'acara' : 'project'} ini dari database?
+                Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus {deleteConfirm?.collection === 'members' ? 'anggota' : deleteConfirm?.collection === 'events' ? 'acara' : deleteConfirm?.collection === 'attendance' ? 'catatan kehadiran' : 'project'} ini dari database?
               </p>
               
               <div className="flex gap-4">

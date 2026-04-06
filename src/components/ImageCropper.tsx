@@ -31,7 +31,7 @@ async function getCroppedImg(
   }
 
   // Scale down if too large to prevent 1MB Firestore limit issues
-  const MAX_WIDTH = 800;
+  const MAX_WIDTH = 1600;
   let targetWidth = pixelCrop.width;
   let targetHeight = pixelCrop.height;
 

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import AdBanner from '../components/AdBanner';
 import { motion, AnimatePresence } from 'motion/react';
-import { ExternalLink, Calendar, Search, Image as ImageIcon, Grid, List } from 'lucide-react';
+import { ExternalLink, Calendar, Search, Image as ImageIcon, Grid, List, Heart } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -304,7 +303,28 @@ export default function Gallery() {
           <p className="text-zinc-500">Coba gunakan kata kunci pencarian yang lain.</p>
         </div>
       )}
-      <AdBanner />
+
+      {/* Support Section */}
+      <section className="mt-32 max-w-4xl mx-auto">
+        <div className="bg-gradient-to-br from-accent to-accent/60 rounded-[3rem] p-12 text-center relative overflow-hidden shadow-2xl shadow-accent/20">
+          <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+             <Heart className="w-64 h-64 -rotate-12 -translate-x-10 -translate-y-10 text-white fill-current" />
+          </div>
+          <h2 className="text-3xl md:text-4xl font-black mb-6 relative z-10 text-white uppercase">DUKUNG KREATIVITAS KAMI</h2>
+          <p className="text-white/80 text-lg mb-10 max-w-2xl mx-auto relative z-10">
+            Bantu kami terus berkarya dan mendokumentasikan setiap momen berharga dengan memberikan dukungan melalui Saweria.
+          </p>
+          <a
+            href="https://saweria.co/cinegraphnepal"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white text-accent px-10 py-5 rounded-2xl font-black text-lg hover:bg-zinc-100 transition-all inline-flex items-center gap-3 relative z-10 shadow-xl active:scale-95"
+          >
+            <Heart className="w-6 h-6 fill-current" />
+            Support Kami di Saweria
+          </a>
+        </div>
+      </section>
     </div>
   </motion.div>
   );

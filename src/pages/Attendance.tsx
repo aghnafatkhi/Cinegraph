@@ -93,6 +93,7 @@ export default function Attendance() {
             status: 'Hadir'
           });
 
+          console.log("Attendance recorded successfully for:", scannedUserId);
           setScanResult({ success: true, message: 'Kehadiran berhasil dicatat!' });
           
           setTimeout(() => {
@@ -102,7 +103,11 @@ export default function Attendance() {
 
         } catch (error: any) {
           console.error("Error recording attendance:", error);
-          setScanResult({ success: false, message: 'Gagal mencatat kehadiran.' });
+          let errorMessage = 'Gagal mencatat kehadiran.';
+          if (error.message?.includes('permission-denied')) {
+            errorMessage = 'Error: Izin ditolak. Pastikan Anda adalah Admin.';
+          }
+          setScanResult({ success: false, message: errorMessage });
           setTimeout(() => {
             setScanResult(null);
             scanner.resume();

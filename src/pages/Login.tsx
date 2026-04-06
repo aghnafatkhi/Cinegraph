@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { auth, db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Camera, Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
@@ -14,6 +14,28 @@ export default function Login() {
   const navigate = useNavigate();
 
   const checkMembershipAndNavigate = async (user: any) => {
+    // Sync with 'users' collection for RBAC
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      
+      const isSuperAdmin = user.email === 'aghna1011@gmail.com';
+      
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          email: user.email,
+          role: isSuperAdmin ? 'admin' : 'user',
+          displayName: user.displayName || '',
+          createdAt: new Date().toISOString()
+        });
+      } else if (isSuperAdmin && userSnap.data().role !== 'admin') {
+        // Ensure super admin always has admin role
+        await setDoc(userRef, { role: 'admin' }, { merge: true });
+      }
+    } catch (err) {
+      console.error("Error syncing user document:", err);
+    }
+
     if (user.email === 'aghna1011@gmail.com') {
       navigate('/admin');
       return;
@@ -28,7 +50,14 @@ export default function Login() {
         await signOut(auth);
         setError('Email Anda belum terdaftar sebagai anggota. Silakan hubungi admin untuk mendaftar.');
       } else {
-        navigate('/dashboard');
+        // Check if user is admin via Firestore
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists() && userSnap.data().role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (err) {
       console.error("Error checking membership:", err);

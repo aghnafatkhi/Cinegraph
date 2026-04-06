@@ -7,11 +7,6 @@ import { User, Briefcase, Award, Plus, Trash2, Save, LogOut, AlertCircle, CheckC
 import ImageCropper from '../components/ImageCropper';
 import { resizeImage } from '../lib/imageUtils';
 
-interface PortfolioItem {
-  title: string;
-  link: string;
-}
-
 interface Member {
   id: string;
   name: string;
@@ -23,13 +18,13 @@ interface Member {
   phone?: string;
   uid?: string;
   skills?: string[];
-  portfolio?: PortfolioItem[];
   bio?: string;
   joinYear?: string;
   tiktok?: string;
   youtube?: string;
   favoriteGear?: string;
   featuredPhotos?: string[];
+  voteCount?: number;
 }
 
 export default function Dashboard() {
@@ -47,15 +42,15 @@ export default function Dashboard() {
   const [instagram, setInstagram] = useState('');
   const [phone, setPhone] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
-  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
-  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [bio, setBio] = useState('');
   const [joinYear, setJoinYear] = useState('');
   const [tiktok, setTiktok] = useState('');
   const [youtube, setYoutube] = useState('');
   const [favoriteGear, setFavoriteGear] = useState('');
   const [featuredPhotos, setFeaturedPhotos] = useState<string[]>([]);
+  const [voteCount, setVoteCount] = useState(0);
   const [dragActive, setDragActive] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -77,7 +72,7 @@ export default function Dashboard() {
         setMessage({ type: 'error', text: 'Maksimal 8 foto unggulan.' });
         return;
       }
-      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 600)));
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 1600)));
       setFeaturedPhotos([...featuredPhotos, ...newPhotos]);
     }
   };
@@ -89,7 +84,7 @@ export default function Dashboard() {
         setMessage({ type: 'error', text: 'Maksimal 8 foto unggulan.' });
         return;
       }
-      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 600)));
+      const newPhotos = await Promise.all(files.map(file => resizeImage(file, 1600)));
       setFeaturedPhotos([...featuredPhotos, ...newPhotos]);
     }
   };
@@ -124,13 +119,13 @@ export default function Dashboard() {
           setInstagram(data.instagram || '');
           setPhone(data.phone || '');
           setSkills(data.skills || []);
-          setPortfolio(data.portfolio || []);
           setBio(data.bio || '');
           setJoinYear(data.joinYear || '');
           setTiktok(data.tiktok || '');
           setYoutube(data.youtube || '');
           setFavoriteGear(data.favoriteGear || '');
           setFeaturedPhotos(data.featuredPhotos || []);
+          setVoteCount(data.voteCount || 0);
 
           // Link UID if not already linked
           if (!data.uid) {
@@ -161,13 +156,13 @@ export default function Dashboard() {
         instagram,
         phone,
         skills,
-        portfolio,
         bio,
         joinYear,
         tiktok,
         youtube,
         favoriteGear,
-        featuredPhotos
+        featuredPhotos,
+        voteCount
       });
       setMessage({ type: 'success', text: 'Profil berhasil diperbarui!' });
     } catch (err: any) {
@@ -176,34 +171,6 @@ export default function Dashboard() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const addSkill = () => {
-    setSkills([...skills, '']);
-  };
-
-  const updateSkill = (index: number, value: string) => {
-    const newSkills = [...skills];
-    newSkills[index] = value;
-    setSkills(newSkills);
-  };
-
-  const removeSkill = (index: number) => {
-    setSkills(skills.filter((_, i) => i !== index));
-  };
-
-  const addPortfolio = () => {
-    setPortfolio([...portfolio, { title: '', link: '' }]);
-  };
-
-  const updatePortfolio = (index: number, field: keyof PortfolioItem, value: string) => {
-    const newPortfolio = [...portfolio];
-    newPortfolio[index] = { ...newPortfolio[index], [field]: value };
-    setPortfolio(newPortfolio);
-  };
-
-  const removePortfolio = (index: number) => {
-    setPortfolio(portfolio.filter((_, i) => i !== index));
   };
 
   const handleCropComplete = (croppedImageBase64: string) => {
@@ -417,29 +384,27 @@ export default function Dashboard() {
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <Award className="w-5 h-5 text-accent" />
-                  <h3 className="text-lg font-bold">Keahlian</h3>
-                </div>
-                <button onClick={addSkill} className="p-2 bg-zinc-800 hover:bg-accent rounded-lg transition-all">
-                  <Plus className="w-4 h-4" />
-                </button>
+              <div className="flex items-center gap-3 mb-8">
+                <Award className="w-5 h-5 text-accent" />
+                <h3 className="text-lg font-bold">Keahlian (Pilih 3)</h3>
               </div>
               <div className="space-y-4">
-                {skills.map((skill, index) => (
-                  <div key={index} className="flex gap-2">
+                {['Cinematography', 'Directing', 'Editing', 'Screenwriting', 'Lighting', 'Sound Design', 'Production Design', 'Color Grading'].map((skill) => (
+                  <label key={skill} className="flex items-center gap-3 p-4 bg-zinc-950 border border-zinc-800 rounded-xl cursor-pointer hover:border-accent transition-all">
                     <input
-                      type="text"
-                      value={skill}
-                      onChange={(e) => updateSkill(index, e.target.value)}
-                      placeholder="Skill"
-                      className="flex-grow bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
+                      type="checkbox"
+                      checked={skills.includes(skill)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          if (skills.length < 3) setSkills([...skills, skill]);
+                        } else {
+                          setSkills(skills.filter(s => s !== skill));
+                        }
+                      }}
+                      className="w-5 h-5 accent-accent"
                     />
-                    <button onClick={() => removeSkill(index)} className="p-3 bg-zinc-800 hover:bg-red-600/20 hover:text-red-500 rounded-xl transition-all">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                    <span className="font-medium">{skill}</span>
+                  </label>
                 ))}
               </div>
             </div>
@@ -488,66 +453,51 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Right Column: Portfolio */}
+          {/* Right Column: Featured Gallery */}
           <div className="lg:col-span-2">
             <div className="bg-zinc-900 border border-zinc-800 p-8 md:p-10 rounded-3xl h-full">
-              <div className="flex items-center justify-between mb-10">
-                <div className="flex items-center gap-3">
-                  <Briefcase className="w-5 h-5 text-accent" />
-                  <h3 className="text-xl font-bold">Hasil Pekerjaan / Portofolio</h3>
-                </div>
-                <button 
-                  onClick={addPortfolio}
-                  className="bg-accent/10 hover:bg-accent text-accent hover:text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all border border-accent/20"
-                >
-                  <Plus className="w-4 h-4" /> Tambah Item
-                </button>
+              <div className="flex items-center gap-3 mb-10">
+                <ImageIcon className="w-5 h-5 text-accent" />
+                <h3 className="text-xl font-bold">Galeri Foto Unggulan</h3>
+              </div>
+              
+              <div 
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all mb-6 ${dragActive ? 'border-accent bg-accent/5' : 'border-zinc-800 bg-zinc-950 hover:border-accent/50'}`}
+              >
+                <Upload className="w-8 h-8 text-zinc-500 mx-auto mb-3" />
+                <p className="text-sm text-zinc-400 mb-2">Drag & drop foto ke sini, atau</p>
+                <label className="cursor-pointer inline-block bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">
+                  Pilih File
+                  <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} />
+                </label>
               </div>
 
-              <div className="space-y-6">
-                {portfolio.length > 0 ? (
-                  portfolio.map((item, index) => (
-                    <div key={index} className="bg-zinc-950 border border-zinc-800 p-6 rounded-2xl relative group">
-                      <button 
-                        onClick={() => removePortfolio(index)}
-                        className="absolute top-4 right-4 p-2 bg-zinc-900 hover:bg-red-600/20 text-zinc-600 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                      >
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {featuredPhotos.map((photo, index) => (
+                  <div key={index} className="relative group rounded-xl overflow-hidden aspect-square border border-zinc-800">
+                    <img src={photo} alt={`Featured ${index}`} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button onClick={() => {
+                        const newPhotos = [...featuredPhotos];
+                        newPhotos.splice(index, 1);
+                        setFeaturedPhotos(newPhotos);
+                      }} className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all">
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Judul Project</label>
-                          <input
-                            type="text"
-                            value={item.title}
-                            onChange={(e) => updatePortfolio(index, 'title', e.target.value)}
-                            placeholder="Contoh: Editor Video Profil Sekolah"
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-accent transition-all"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Link Project (YouTube/Drive)</label>
-                          <div className="relative">
-                            <ExternalLink className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
-                            <input
-                              type="text"
-                              value={item.link}
-                              onChange={(e) => updatePortfolio(index, 'link', e.target.value)}
-                              placeholder="https://..."
-                              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-accent transition-all"
-                            />
-                          </div>
-                        </div>
-                      </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-20 border-2 border-dashed border-zinc-800 rounded-[2rem]">
-                    <Briefcase className="w-12 h-12 text-zinc-800 mx-auto mb-4" />
-                    <p className="text-zinc-600 font-medium">Belum ada item portofolio. Klik tombol di atas untuk menambah.</p>
                   </div>
-                )}
+                ))}
               </div>
+              {featuredPhotos.length === 0 && (
+                <div className="text-center py-20 border-2 border-dashed border-zinc-800 rounded-[2rem]">
+                  <ImageIcon className="w-12 h-12 text-zinc-800 mx-auto mb-4" />
+                  <p className="text-zinc-600 font-medium">Belum ada foto unggulan.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

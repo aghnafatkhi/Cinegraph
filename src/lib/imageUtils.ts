@@ -1,4 +1,4 @@
-export const resizeImage = (file: File, maxWidth: number = 800): Promise<string> => {
+export const resizeImage = (file: File, maxWidth: number = 1600): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);

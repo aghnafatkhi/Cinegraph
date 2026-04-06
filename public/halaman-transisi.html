@@ -45,24 +45,46 @@
             gap: 40px;
         }
 
-        /* Ad Slot Styling */
-        .ad-slot {
+        /* Saweria Button Styling */
+        .saweria-container {
             width: 100%;
             max-width: 728px;
-            height: 90px;
-            background-color: var(--card-bg);
-            border: 1px dashed var(--border-color);
-            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent) 0%, #d97706 100%);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.3);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .saweria-container:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 35px -10px rgba(245, 158, 11, 0.4);
+        }
+
+        .saweria-title {
+            font-weight: 900;
+            font-size: 18px;
+            color: #000000;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .saweria-btn {
+            background-color: #ffffff;
+            color: var(--accent);
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 14px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: var(--text-muted);
-            font-size: 14px;
-            font-weight: 500;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            overflow: hidden;
-            position: relative;
+            gap: 8px;
         }
 
         /* Typography */
@@ -172,13 +194,15 @@
     <div class="container">
         
         <!-- ========================================== -->
-        <!-- SLOT IKLAN ATAS (LEADERBOARD 728x90)       -->
-        <!-- TEMPELKAN SCRIPT IKLAN ANDA DI BAWAH INI   -->
+        <!-- SAWERIA SUPPORT BUTTON (TOP)               -->
         <!-- ========================================== -->
-        <div class="ad-slot">
-            <span>Slot Iklan 728x90</span>
-            <!-- <script async src="..."></script> -->
-        </div>
+        <a href="https://saweria.co/cinegraphnepal" target="_blank" class="saweria-container">
+            <span class="saweria-title">Dukung Kreativitas Kami</span>
+            <div class="saweria-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                Support di Saweria
+            </div>
+        </a>
 
         <div class="header-text">
             <h1 class="title" id="main-title">Menyiapkan Tautan Anda</h1>
@@ -199,13 +223,15 @@
         <a href="#" class="btn-continue" id="continue-btn">Lanjutkan ke Dokumentasi</a>
 
         <!-- ========================================== -->
-        <!-- SLOT IKLAN BAWAH (LEADERBOARD 728x90)      -->
-        <!-- TEMPELKAN SCRIPT IKLAN ANDA DI BAWAH INI   -->
+        <!-- SAWERIA SUPPORT BUTTON (BOTTOM)            -->
         <!-- ========================================== -->
-        <div class="ad-slot">
-            <span>Slot Iklan 728x90</span>
-            <!-- <script async src="..."></script> -->
-        </div>
+        <a href="https://saweria.co/cinegraphnepal" target="_blank" class="saweria-container">
+            <span class="saweria-title">Bantu Kami Terus Berkarya</span>
+            <div class="saweria-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                Support di Saweria
+            </div>
+        </a>
 
     </div>
 

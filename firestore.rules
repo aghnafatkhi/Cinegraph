@@ -40,7 +40,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        (request.auth.token.email == "aghna1011@gmail.com" && request.auth.token.email_verified == true ||
+        (request.auth.token.email == "aghna1011@gmail.com" ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
@@ -98,8 +98,17 @@ service cloud.firestore {
       return data.keys().hasAll(['userId', 'userName', 'timestamp', 'status']) &&
              data.userId is string &&
              data.userName is string &&
-             data.timestamp is string &&
-             data.status is string;
+             data.status is string &&
+             (data.timestamp is timestamp || data.timestamp is string);
+    }
+
+    function isValidLike(data) {
+      return data.keys().hasAll(['photoUrl', 'photoHash', 'userId', 'memberId', 'createdAt']) &&
+             data.photoUrl is string &&
+             data.photoHash is string &&
+             data.userId == request.auth.uid &&
+             data.memberId is string &&
+             data.createdAt is string;
     }
 
     function isValidUserVote(data) {
@@ -133,6 +142,12 @@ service cloud.firestore {
       allow read: if true;
     }
 
+    match /likes/{likeId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId && isValidLike(request.resource.data);
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
     match /members/{memberId} {
       allow read: if true;
       allow create: if isAdmin() && isValidMember(request.resource.data);
@@ -150,6 +165,7 @@ service cloud.firestore {
     match /attendance/{attendanceId} {
       allow read: if isAdmin();
       allow create: if isAdmin() && isValidAttendance(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /user_votes/{userId} {

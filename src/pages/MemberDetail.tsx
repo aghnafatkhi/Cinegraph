@@ -1,17 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 import { motion } from 'motion/react';
 import { ArrowLeft, ExternalLink, Briefcase, Award, Instagram, Phone, Mail, Youtube, Video, Calendar, Camera, Heart } from 'lucide-react';
-
-interface PortfolioItem {
-  id: string;
-  title: string;
-  link: string;
-  thumbnailUrl?: string;
-  votes?: number;
-}
+import Lightbox from '../components/Lightbox';
+import { cn, getHash } from '../lib/utils';
 
 interface Member {
   id: string;
@@ -23,7 +17,6 @@ interface Member {
   instagram?: string;
   phone?: string;
   skills?: string[];
-  portfolio?: PortfolioItem[];
   bio?: string;
   joinYear?: string;
   tiktok?: string;
@@ -37,6 +30,8 @@ export default function MemberDetail() {
   const navigate = useNavigate();
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [likedPhotos, setLikedPhotos] = useState<string[]>([]); // Stores photoHashes
 
   useEffect(() => {
     const fetchMember = async () => {
@@ -59,6 +54,74 @@ export default function MemberDetail() {
 
     fetchMember();
   }, [id]);
+
+  useEffect(() => {
+    if (!auth.currentUser || !id) {
+      setLikedPhotos([]);
+      return;
+    }
+
+    console.log("Setting up likes listener for user:", auth.currentUser.uid, "and member:", id);
+
+    // Query likes by userId
+    const q = query(
+      collection(db, 'likes'),
+      where('userId', '==', auth.currentUser.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      // Filter by memberId client-side
+      const likes = snapshot.docs
+        .filter(doc => doc.data().memberId === id)
+        .map(doc => doc.data().photoHash || getHash(doc.data().photoUrl));
+      
+      console.log("Current liked photo hashes for this member:", likes);
+      setLikedPhotos(likes);
+    }, (error) => {
+      console.error("Error listening to likes:", error);
+    });
+
+    return () => unsubscribe();
+  }, [id, auth.currentUser]);
+
+  const handleLike = async (photoUrl: string) => {
+    if (!auth.currentUser) {
+      alert("Silakan login terlebih dahulu untuk menyukai foto.");
+      return;
+    }
+    
+    const photoHash = getHash(photoUrl);
+    const likeId = `${auth.currentUser.uid}_${photoHash}`;
+    const likeRef = doc(db, 'likes', likeId);
+    
+    const isLiked = likedPhotos.includes(photoHash);
+    
+    console.log(`[handleLike] photoHash: ${photoHash}, isLiked: ${isLiked}, userId: ${auth.currentUser.uid}`);
+    
+    try {
+      if (isLiked) {
+        console.log(`[handleLike] Deleting like document: ${likeId}`);
+        await deleteDoc(likeRef);
+        console.log("[handleLike] Like removed from Firestore successfully");
+      } else {
+        console.log(`[handleLike] Creating like document: ${likeId}`);
+        await setDoc(likeRef, { 
+          photoUrl, 
+          photoHash,
+          userId: auth.currentUser.uid, 
+          memberId: id,
+          createdAt: new Date().toISOString()
+        });
+        console.log("[handleLike] Like added to Firestore successfully");
+      }
+    } catch (error) {
+      console.error("[handleLike] Error toggling like:", error);
+    }
+  };
+
+  useEffect(() => {
+    console.log("[MemberDetail] Current likedPhotos state:", likedPhotos);
+  }, [likedPhotos]);
 
   if (loading) {
     return (
@@ -114,7 +177,7 @@ export default function MemberDetail() {
                 />
               </div>
               
-              <h1 className="text-3xl font-black mb-2 text-zinc-900 dark:text-white relative z-10 capitalize">{member.name}</h1>
+              <h1 className="text-3xl font-black mb-2 text-zinc-900 dark:text-white relative z-10 capitalize break-words w-full px-2">{member.name}</h1>
               <p className="text-accent font-bold text-sm uppercase tracking-widest mb-2 relative z-10">{member.role}</p>
               {member.kelas && (
                 <p className="text-zinc-500 dark:text-zinc-400 font-medium text-sm mb-8 relative z-10">{member.kelas}</p>
@@ -150,7 +213,7 @@ export default function MemberDetail() {
               </div>
 
               <div className="flex flex-wrap justify-center gap-2 relative z-10">
-                {member.skills?.map((skill, i) => (
+                {(member.skills?.slice(0, 3) || ['Cinematography', 'Lighting', 'Editing']).map((skill, i) => (
                   <span key={i} className="text-xs bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-4 py-2 rounded-full font-bold uppercase tracking-wider border border-zinc-200 dark:border-zinc-700 shadow-sm">
                     {skill}
                   </span>
@@ -203,58 +266,6 @@ export default function MemberDetail() {
               </div>
             </div>
 
-            {/* Portfolio Section */}
-            <div className="bg-zinc-50 dark:bg-zinc-900 rounded-[3rem] p-10 border border-zinc-200 dark:border-zinc-800 shadow-xl">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="p-3 bg-accent/10 rounded-2xl text-accent">
-                  <Briefcase className="w-6 h-6" />
-                </div>
-                <h2 className="text-2xl font-black text-zinc-900 dark:text-white">Hasil Pekerjaan</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {member.portfolio && member.portfolio.length > 0 ? (
-                  member.portfolio.map((item, i) => (
-                    <a
-                      key={i}
-                      href={item.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl transition-all group shadow-sm hover:shadow-xl overflow-hidden"
-                    >
-                      {item.thumbnailUrl && (
-                        <div className="aspect-video w-full overflow-hidden">
-                          <img 
-                            src={item.thumbnailUrl} 
-                            alt={item.title} 
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                            referrerPolicy="no-referrer"
-                          />
-                        </div>
-                      )}
-                      <div className="p-6 flex flex-col flex-grow">
-                        <div className="flex justify-between items-start gap-4 mb-4">
-                          <span className="font-bold text-lg text-zinc-900 dark:text-white group-hover:text-accent transition-colors line-clamp-2">{item.title}</span>
-                          {item.votes !== undefined && item.votes > 0 && (
-                            <div className="flex items-center gap-1 bg-accent/10 text-accent px-2 py-1 rounded-lg text-xs font-bold">
-                              <Heart className="w-3 h-3 fill-current" /> {item.votes}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm font-bold text-zinc-500 group-hover:text-accent transition-colors mt-auto">
-                          Lihat Karya <ExternalLink className="w-4 h-4" />
-                        </div>
-                      </div>
-                    </a>
-                  ))
-                ) : (
-                  <div className="col-span-full p-8 text-center bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl">
-                    <p className="text-zinc-400 dark:text-zinc-500 font-medium">Belum ada item portofolio yang ditambahkan.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Featured Photos Section */}
             {member.featuredPhotos && member.featuredPhotos.length > 0 && (
               <div className="bg-zinc-50 dark:bg-zinc-900 rounded-[3rem] p-10 border border-zinc-200 dark:border-zinc-800 shadow-xl">
@@ -267,13 +278,24 @@ export default function MemberDetail() {
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {member.featuredPhotos.map((photo, i) => (
-                    <div key={i} className="rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm group">
-                      <img 
-                        src={photo} 
-                        alt={`Featured ${i + 1}`} 
-                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
-                        referrerPolicy="no-referrer"
-                      />
+                    <div key={i} className="relative rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm group">
+                      <div className="cursor-pointer" onClick={() => setLightboxSrc(photo)}>
+                        <img 
+                          src={photo} 
+                          alt={`Featured ${i + 1}`} 
+                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <button 
+                        onClick={() => handleLike(photo)}
+                        className={cn(
+                          "absolute top-2 right-2 p-2 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm rounded-full transition-colors",
+                          likedPhotos.includes(getHash(photo)) ? "text-accent" : "text-zinc-500 hover:text-accent"
+                        )}
+                      >
+                        <Heart className={cn("w-5 h-5", likedPhotos.includes(getHash(photo)) && "fill-current")} />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -282,6 +304,7 @@ export default function MemberDetail() {
           </motion.div>
         </div>
       </div>
+      {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
     </motion.div>
   );
 }

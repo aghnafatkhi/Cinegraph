@@ -202,6 +202,7 @@ export default function Gallery() {
                     alt={event.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     referrerPolicy="no-referrer"
+                    loading="lazy"
                   />
                   {/* Gradient Overlay - ONLY for Grid Mode */}
                   {viewMode === 'grid' && (

@@ -34,7 +34,7 @@ export default function Navbar() {
     { name: 'Beranda', path: '/', icon: <Home className="w-4 h-4" /> },
     { name: 'Galeri', path: '/gallery', icon: <ImageIcon className="w-4 h-4" /> },
     { name: 'Anggota', path: '/members', icon: <Users className="w-4 h-4" /> },
-    { name: 'Karya', path: '/projects', icon: <Film className="w-4 h-4" /> },
+    { name: 'Video', path: '/projects', icon: <Film className="w-4 h-4" /> },
     { name: 'Feed Foto', path: '/leaderboard', icon: <LayoutGrid className="w-4 h-4" /> },
     { name: 'Presensi', path: '/attendance', icon: <Camera className="w-4 h-4" /> },
   ];

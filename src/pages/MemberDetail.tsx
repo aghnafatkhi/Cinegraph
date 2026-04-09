@@ -213,11 +213,15 @@ export default function MemberDetail() {
               </div>
 
               <div className="flex flex-wrap justify-center gap-2 relative z-10">
-                {(member.skills?.slice(0, 3) || ['Cinematography', 'Lighting', 'Editing']).map((skill, i) => (
-                  <span key={i} className="text-xs bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-4 py-2 rounded-full font-bold uppercase tracking-wider border border-zinc-200 dark:border-zinc-700 shadow-sm">
-                    {skill}
-                  </span>
-                ))}
+                {member.skills && member.skills.length > 0 ? (
+                  member.skills.slice(0, 3).map((skill, i) => (
+                    <span key={i} className="text-xs bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-4 py-2 rounded-full font-bold uppercase tracking-wider border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                      {skill}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-zinc-400 italic">Belum ada keahlian dipilih</span>
+                )}
               </div>
             </div>
           </motion.div>

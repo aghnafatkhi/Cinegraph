@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, getDocs, limit, addDoc, orderBy, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { User, Briefcase, Award, Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, Image as ImageIcon, ExternalLink, Upload } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { User, Briefcase, Award, Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, Image as ImageIcon, ExternalLink, Upload, Wallet, CreditCard, Clock } from 'lucide-react';
 import ImageCropper from '../components/ImageCropper';
 import { resizeImage } from '../lib/imageUtils';
 import { useAuth } from '../context/AuthContext';
+import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 interface Member {
   id: string;
@@ -28,11 +29,14 @@ interface Member {
   voteCount?: number;
 }
 
+const ALLOWED_SKILLS = ['Cinematography', 'Directing', 'Editing', 'Screenwriting', 'Lighting', 'Sound Design', 'Production Design', 'Color Grading'];
+
 export default function Dashboard() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletePhotoIndex, setDeletePhotoIndex] = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const navigate = useNavigate();
 
@@ -52,6 +56,9 @@ export default function Dashboard() {
   const [voteCount, setVoteCount] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [isPaying, setIsPaying] = useState(false);
+  const [payAmount, setPayAmount] = useState('2000');
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -121,7 +128,7 @@ export default function Dashboard() {
             setPhotoUrl(data.photoUrl || '');
             setInstagram(data.instagram || '');
             setPhone(data.phone || '');
-            setSkills(Array.isArray(data.skills) ? data.skills : []);
+            setSkills(Array.isArray(data.skills) ? data.skills.filter(s => ALLOWED_SKILLS.includes(s)) : []);
             setBio(data.bio || '');
             setJoinYear(data.joinYear || '');
             setTiktok(data.tiktok || '');
@@ -148,6 +155,27 @@ export default function Dashboard() {
 
     return () => unsubscribeMember();
   }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      const q = query(
+        collection(db, 'attendance'),
+        where('userId', '==', user.uid),
+        orderBy('timestamp', 'desc')
+      );
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const history = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter((a: any) => a.uangKas);
+        setPaymentHistory(history);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'attendance');
+      });
+      
+      return () => unsubscribe();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!authLoading && !loading && isAdmin && !member) {
@@ -187,6 +215,64 @@ export default function Dashboard() {
   const handleCropComplete = (croppedImageBase64: string) => {
     setPhotoUrl(croppedImageBase64);
     setCropImageSrc(null);
+  };
+
+  const handleOnlinePayment = async () => {
+    if (!member || !user) return;
+    
+    setIsPaying(true);
+    try {
+      const response = await fetch('/api/payment/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseInt(payAmount),
+          orderId: `KAS-DASH-${Date.now()}`,
+          customerDetails: {
+            first_name: member.name,
+            email: user.email
+          }
+        })
+      });
+      
+      const data = await response.json();
+      if (data.token) {
+        (window as any).snap.pay(data.token, {
+          onSuccess: async (result: any) => {
+            // Record payment in attendance collection as "Online Payment"
+            await addDoc(collection(db, 'attendance'), {
+              userId: user.uid,
+              userName: member.name,
+              timestamp: serverTimestamp(),
+              status: 'Hadir',
+              uangKas: {
+                amount: parseInt(payAmount),
+                method: 'Online'
+              }
+            });
+            setMessage({ type: 'success', text: 'Pembayaran Online Berhasil!' });
+            setIsPaying(false);
+          },
+          onPending: (result: any) => {
+            setMessage({ type: 'error', text: 'Pembayaran tertunda. Silakan selesaikan pembayaran.' });
+            setIsPaying(false);
+          },
+          onError: (result: any) => {
+            setMessage({ type: 'error', text: 'Pembayaran gagal.' });
+            setIsPaying(false);
+          },
+          onClose: () => {
+            setIsPaying(false);
+          }
+        });
+      } else {
+        throw new Error(data.error || 'Gagal membuat transaksi');
+      }
+    } catch (error: any) {
+      console.error("Payment error:", error);
+      setMessage({ type: 'error', text: 'Gagal memproses pembayaran: ' + error.message });
+      setIsPaying(false);
+    }
   };
 
   if (authLoading || loading) {
@@ -395,20 +481,101 @@ export default function Dashboard() {
             </div>
 
             <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-3xl">
+              <div className="flex items-center gap-3 mb-8">
+                <Wallet className="w-5 h-5 text-accent" />
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Pembayaran Uang Kas</h3>
+              </div>
+              <div className="space-y-6">
+                <div className="p-4 bg-accent/5 border border-accent/10 rounded-2xl">
+                  <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+                    Bayar uang kas mingguan secara online melalui GoPay, ShopeePay, Transfer Bank, dll.
+                  </p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Nominal</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-zinc-400">Rp</span>
+                        <input
+                          type="number"
+                          value={payAmount}
+                          onChange={(e) => setPayAmount(e.target.value)}
+                          className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-zinc-900 dark:text-white font-bold focus:outline-none focus:border-accent"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleOnlinePayment}
+                      disabled={isPaying}
+                      className="w-full bg-accent hover:bg-accent/90 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-accent/20"
+                    >
+                      {isPaying ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <CreditCard className="w-5 h-5" />
+                          Bayar Online Sekarang
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-3xl">
+              <div className="flex items-center gap-3 mb-8">
+                <Clock className="w-5 h-5 text-accent" />
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Riwayat Kas</h3>
+              </div>
+              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {paymentHistory.length > 0 ? (
+                  paymentHistory.map((pay) => (
+                    <div key={pay.id} className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-zinc-900 dark:text-white">Rp {pay.uangKas.amount.toLocaleString()}</p>
+                        <p className="text-[10px] text-zinc-500">
+                          {pay.timestamp?.toDate ? pay.timestamp.toDate().toLocaleDateString() : new Date(pay.timestamp).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span className={cn(
+                        "px-2 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-full",
+                        pay.uangKas.method === 'Online' ? "bg-blue-500/10 text-blue-500" :
+                        pay.uangKas.method === 'QRIS' ? "bg-purple-500/10 text-purple-500" :
+                        "bg-green-500/10 text-green-500"
+                      )}>
+                        {pay.uangKas.method}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center py-10 text-zinc-500 text-sm">Belum ada riwayat pembayaran.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-3xl">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                   <Award className="w-5 h-5 text-accent" />
                   <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Keahlian</h3>
                 </div>
-                <span className={cn(
-                  "text-xs font-bold px-2 py-1 rounded-md",
-                  skills.length === 3 ? "bg-accent/20 text-accent" : "bg-zinc-200 dark:bg-zinc-800 text-zinc-500"
-                )}>
-                  {skills.length}/3 Terpilih
-                </span>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setSkills([])}
+                    className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600 transition-colors"
+                  >
+                    Reset
+                  </button>
+                  <span className={cn(
+                    "text-xs font-bold px-2 py-1 rounded-md",
+                    skills.length === 3 ? "bg-accent/20 text-accent" : "bg-zinc-200 dark:bg-zinc-800 text-zinc-500"
+                  )}>
+                    {skills.length}/3 Terpilih
+                  </span>
+                </div>
               </div>
               <div className="grid grid-cols-1 gap-3">
-                {['Cinematography', 'Directing', 'Editing', 'Screenwriting', 'Lighting', 'Sound Design', 'Production Design', 'Color Grading'].map((skill) => {
+                {ALLOWED_SKILLS.map((skill) => {
                   const isSelected = skills.includes(skill);
                   return (
                     <button
@@ -471,11 +638,7 @@ export default function Dashboard() {
                   <div key={index} className="relative group rounded-xl overflow-hidden aspect-square border border-zinc-200 dark:border-zinc-800">
                     <img src={photo} alt={`Featured ${index}`} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <button onClick={() => {
-                        const newPhotos = [...featuredPhotos];
-                        newPhotos.splice(index, 1);
-                        setFeaturedPhotos(newPhotos);
-                      }} className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all">
+                      <button onClick={() => setDeletePhotoIndex(index)} className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -492,6 +655,53 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      {/* Delete Photo Confirmation */}
+      <AnimatePresence>
+        {deletePhotoIndex !== null && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeletePhotoIndex(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-zinc-900 p-10 rounded-[2.5rem] shadow-2xl z-10 text-center"
+            >
+              <div className="bg-red-600/10 border border-red-600/20 p-4 rounded-2xl w-fit mx-auto mb-6">
+                <Trash2 className="w-10 h-10 text-red-600" />
+              </div>
+              <h3 className="text-2xl font-black mb-4 text-zinc-900 dark:text-white tracking-tight">Hapus Foto?</h3>
+              <p className="text-zinc-500 mb-8 leading-relaxed">
+                Apakah Anda yakin ingin menghapus foto ini dari profil Anda?
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setDeletePhotoIndex(null)}
+                  className="w-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white font-bold py-4 rounded-xl transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={() => {
+                    const newPhotos = [...featuredPhotos];
+                    newPhotos.splice(deletePhotoIndex, 1);
+                    setFeaturedPhotos(newPhotos);
+                    setDeletePhotoIndex(null);
+                  }}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-red-600/20"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

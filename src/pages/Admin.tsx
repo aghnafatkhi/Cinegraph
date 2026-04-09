@@ -5,13 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, 
-  Image as ImageIcon, Film, Users, Calendar, ExternalLink, X, Edit2, Upload, Link as LinkIcon, Download
+  Image as ImageIcon, Film, Users, Calendar, ExternalLink, X, Edit2, Upload, Link as LinkIcon, Download, Wallet
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { resizeImage } from '../lib/imageUtils';
 import ImageCropper from '../components/ImageCropper';
 import { useAuth } from '../context/AuthContext';
+import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -59,11 +60,15 @@ interface AttendanceRecord {
   userName: string;
   timestamp: any;
   status: string;
+  uangKas?: {
+    amount: number;
+    method: 'Cash' | 'QRIS' | 'Online';
+  };
 }
 
 export default function Admin() {
   const { user, isAdmin, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'events' | 'projects' | 'members' | 'admins' | 'attendance'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'projects' | 'members' | 'admins' | 'attendance' | 'kas'>('events');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
@@ -123,7 +128,7 @@ export default function Admin() {
     const unsubEvents = onSnapshot(query(collection(db, 'events'), orderBy('date', 'desc')), (snap) => {
       setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Event[]);
     }, (error) => {
-      console.error("Error fetching events:", error);
+      handleFirestoreError(error, OperationType.LIST, 'events');
       if (error.message.includes('insufficient permissions')) {
         setMessage({ type: 'error', text: 'Izin ditolak saat mengambil data acara.' });
       }
@@ -132,26 +137,26 @@ export default function Admin() {
     const unsubProjects = onSnapshot(query(collection(db, 'projects'), orderBy('title', 'asc')), (snap) => {
       setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Project[]);
     }, (error) => {
-      console.error("Error fetching projects:", error);
+      handleFirestoreError(error, OperationType.LIST, 'projects');
     });
 
     const unsubMembers = onSnapshot(collection(db, 'members'), (snap) => {
       setMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Member[]);
     }, (error) => {
-      console.error("Error fetching members:", error);
+      handleFirestoreError(error, OperationType.LIST, 'members');
     });
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
       setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })) as UserProfile[]);
     }, (error) => {
-      console.error("Error fetching users:", error);
+      handleFirestoreError(error, OperationType.LIST, 'users');
     });
 
     const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc')), (snap) => {
       setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() })) as AttendanceRecord[]);
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching attendance:", error);
+      handleFirestoreError(error, OperationType.LIST, 'attendance');
       setLoading(false);
     });
 
@@ -298,39 +303,6 @@ export default function Admin() {
       setTimeout(() => setMessage(null), 5000);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleAddAdminByEmail = async () => {
-    if (!adminEmailInput.trim()) return;
-    
-    setLoading(true);
-    try {
-      // Check if user already exists in 'users' collection
-      const q = query(collection(db, 'users'), where('email', '==', adminEmailInput.trim().toLowerCase()));
-      const snap = await getDocs(q);
-      
-      if (!snap.empty) {
-        const userDoc = snap.docs[0];
-        await updateDoc(doc(db, 'users', userDoc.id), { role: 'admin' });
-        setMessage({ type: 'success', text: `User ${adminEmailInput} sekarang menjadi admin!` });
-      } else {
-        // Create a placeholder user document
-        await addDoc(collection(db, 'users'), {
-          email: adminEmailInput.trim().toLowerCase(),
-          role: 'admin',
-          displayName: 'Pending Admin',
-          createdAt: new Date().toISOString()
-        });
-        setMessage({ type: 'success', text: `Admin ${adminEmailInput} berhasil ditambahkan! Mereka akan mendapatkan akses saat login.` });
-      }
-      setIsAddAdminModalOpen(false);
-      setAdminEmailInput('');
-    } catch (err: any) {
-      setMessage({ type: 'error', text: 'Gagal menambahkan admin: ' + err.message });
-    } finally {
-      setLoading(false);
-      setTimeout(() => setMessage(null), 5000);
     }
   };
 
@@ -567,15 +539,12 @@ export default function Admin() {
               </>
             )}
             {activeTab === 'admins' && (
-              <button
-                onClick={() => setIsAddAdminModalOpen(true)}
-                className="flex-1 md:flex-none bg-accent hover:bg-accent/90 text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-accent/20 text-xs md:text-sm"
-              >
-                <Plus className="w-4 h-4 md:w-5 md:h-5" />
-                Tambah Admin
-              </button>
+              <div className="flex-1 md:flex-none bg-zinc-100 dark:bg-zinc-900 text-zinc-500 px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-800 text-xs md:text-sm">
+                <Users className="w-4 h-4 md:w-5 md:h-5" />
+                Admin Default Aktif
+              </div>
             )}
-            {activeTab !== 'admins' && activeTab !== 'attendance' && (
+            {activeTab !== 'admins' && activeTab !== 'attendance' && activeTab !== 'kas' && (
               <button
                 onClick={() => {
                   setEditingItem(null);
@@ -599,7 +568,7 @@ export default function Admin() {
         </header>
 
         {/* Stats Section */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
           <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl">
             <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Acara</p>
             <p className="text-3xl font-black text-zinc-900 dark:text-white">{events.length}</p>
@@ -619,6 +588,12 @@ export default function Admin() {
                 const date = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
                 return date.toDateString() === new Date().toDateString();
               }).length}
+            </p>
+          </div>
+          <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Uang Kas</p>
+            <p className="text-3xl font-black text-accent">
+              Rp {attendance.reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
             </p>
           </div>
         </div>
@@ -666,6 +641,15 @@ export default function Admin() {
             )}
           >
             <Users className="w-4 h-4 shrink-0" /> Daftar Anggota
+          </button>
+          <button
+            onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
+            className={cn(
+              "flex-1 md:flex-none px-4 md:px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center justify-center gap-2",
+              activeTab === 'kas' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+            )}
+          >
+            <Wallet className="w-4 h-4 shrink-0" /> Uang Kas
           </button>
           <button
             onClick={() => { setActiveTab('attendance'); setSearchQuery(''); }}
@@ -750,6 +734,32 @@ export default function Admin() {
 
           {activeTab === 'attendance' && (
             <div className="col-span-full space-y-6">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Total Kehadiran</p>
+                  <p className="text-4xl font-black text-zinc-900 dark:text-white">{attendance.length}</p>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Total Uang Kas</p>
+                  <p className="text-4xl font-black text-accent">
+                    Rp {attendance.reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Kas (Cash)</p>
+                  <p className="text-4xl font-black text-zinc-900 dark:text-white">
+                    Rp {attendance.reduce((sum, a) => sum + (a.uangKas?.method === 'Cash' ? a.uangKas.amount : 0), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Kas (QRIS)</p>
+                  <p className="text-4xl font-black text-zinc-900 dark:text-white">
+                    Rp {attendance.reduce((sum, a) => sum + (a.uangKas?.method === 'QRIS' ? a.uangKas.amount : 0), 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
               {/* Filters & Export */}
               <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-zinc-50 dark:bg-zinc-900 p-6 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-sm">
                 <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
@@ -801,6 +811,7 @@ export default function Admin() {
                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Nama Anggota</th>
                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Waktu</th>
                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
+                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Uang Kas</th>
                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Aksi</th>
                       </tr>
                     </thead>
@@ -827,6 +838,16 @@ export default function Admin() {
                             {record.status}
                           </span>
                         </td>
+                        <td className="px-8 py-5">
+                          {record.uangKas ? (
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-zinc-900 dark:text-white">Rp {record.uangKas.amount.toLocaleString()}</span>
+                              <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">{record.uangKas.method}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-zinc-400">-</span>
+                          )}
+                        </td>
                         <td className="px-8 py-5 text-right">
                           <button 
                             onClick={() => setDeleteConfirm({ collection: 'attendance', id: record.id })}
@@ -842,6 +863,100 @@ export default function Admin() {
               </div>
             </div>
           </div>
+          )}
+
+          {activeTab === 'kas' && (
+            <div className="col-span-full space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2.5rem] shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Total Kas (Semua)</p>
+                  <p className="text-4xl font-black text-accent">
+                    Rp {attendance.reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2.5rem] shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Kas Hari Ini</p>
+                  <p className="text-2xl font-black text-accent">
+                    Rp {attendance.filter(a => {
+                      const date = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+                      const today = new Date();
+                      return date.toDateString() === today.toDateString();
+                    }).reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2.5rem] shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Cash</p>
+                  <p className="text-2xl font-black text-zinc-900 dark:text-white">
+                    Rp {attendance.filter(a => a.uangKas?.method === 'Cash').reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2.5rem] shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Digital (QRIS/Online)</p>
+                  <p className="text-2xl font-black text-zinc-900 dark:text-white">
+                    Rp {attendance.filter(a => a.uangKas?.method === 'QRIS' || a.uangKas?.method === 'Online').reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-sm">
+                <div className="px-8 py-6 border-b border-zinc-200 dark:border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-black text-lg text-zinc-900 dark:text-white">Riwayat Pembayaran</h3>
+                    <p className="text-xs text-zinc-500">Daftar transaksi uang kas dari presensi anggota.</p>
+                  </div>
+                  <button 
+                    onClick={exportAttendanceToCSV}
+                    className="w-full md:w-auto flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-6 py-3 rounded-xl text-sm font-black transition-all active:scale-95 shadow-lg"
+                  >
+                    <Download className="w-4 h-4" /> Ekspor Laporan
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Anggota</th>
+                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal</th>
+                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Metode</th>
+                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Nominal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendance.filter(a => a.uangKas).sort((a, b) => {
+                        const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+                        const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+                        return dateB.getTime() - dateA.getTime();
+                      }).map(record => (
+                        <tr key={record.id} className="border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 transition-colors">
+                          <td className="px-8 py-5">
+                            <p className="font-bold text-zinc-900 dark:text-white">{record.userName}</p>
+                            <p className="text-[10px] text-zinc-500">{record.userId}</p>
+                          </td>
+                          <td className="px-8 py-5">
+                            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                              {record.timestamp?.toDate ? record.timestamp.toDate().toLocaleString() : new Date(record.timestamp).toLocaleString()}
+                            </p>
+                          </td>
+                          <td className="px-8 py-5">
+                            <span className={cn(
+                              "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full",
+                              record.uangKas?.method === 'Online' ? "bg-blue-500/10 text-blue-500" :
+                              record.uangKas?.method === 'QRIS' ? "bg-purple-500/10 text-purple-500" :
+                              "bg-green-500/10 text-green-500"
+                            )}>
+                              {record.uangKas?.method}
+                            </span>
+                          </td>
+                          <td className="px-8 py-5 text-right">
+                            <p className="font-black text-zinc-900 dark:text-white">Rp {record.uangKas?.amount.toLocaleString()}</p>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           )}
 
           {activeTab === 'admins' && users.filter(u => u.email.toLowerCase().includes(searchQuery.toLowerCase()) || (u.displayName || '').toLowerCase().includes(searchQuery.toLowerCase())).map(u => (
@@ -869,6 +984,15 @@ export default function Admin() {
                 >
                   {u.role === 'admin' ? 'Revoke Admin' : 'Make Admin'}
                 </button>
+                {u.email !== user?.email && (
+                  <button 
+                    onClick={() => setDeleteConfirm({ collection: 'users', id: u.id })}
+                    className="p-3 bg-red-600/10 text-red-600 hover:bg-red-600 hover:text-white rounded-xl transition-all"
+                    title="Hapus Admin"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -1304,45 +1428,6 @@ export default function Admin() {
         </div>
       )}
 
-      {/* Add Admin Modal */}
-      {isAddAdminModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsAddAdminModalOpen(false)} />
-          <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] shadow-2xl z-10 p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-black text-zinc-900 dark:text-white">Tambah Admin Baru</h2>
-              <button onClick={() => setIsAddAdminModalOpen(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all text-zinc-900 dark:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Email Admin</label>
-                <input 
-                  type="email" 
-                  value={adminEmailInput}
-                  onChange={(e) => setAdminEmailInput(e.target.value)}
-                  placeholder="contoh@gmail.com"
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" 
-                />
-                <p className="text-[10px] text-zinc-500 italic">User akan otomatis menjadi admin saat mereka login dengan email ini.</p>
-              </div>
-              
-              <div className="flex gap-3 pt-4">
-                <button onClick={() => setIsAddAdminModalOpen(false)} className="flex-1 py-3 rounded-xl font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all text-sm">Batal</button>
-                <button
-                  onClick={handleAddAdminByEmail}
-                  disabled={!adminEmailInput || loading}
-                  className="flex-1 bg-accent hover:bg-accent/90 disabled:opacity-50 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-accent/20 text-sm flex items-center justify-center gap-2"
-                >
-                  {loading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Plus className="w-4 h-4" />}
-                  Tambah Admin
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
@@ -1356,10 +1441,10 @@ export default function Admin() {
                 <Trash2 className="w-8 h-8" />
               </div>
               <h2 className="text-2xl font-black mb-2 text-zinc-900 dark:text-white tracking-tight">
-                Hapus {deleteConfirm?.collection === 'members' ? 'Anggota' : deleteConfirm?.collection === 'events' ? 'Acara' : deleteConfirm?.collection === 'attendance' ? 'Catatan Kehadiran' : 'Project'}?
+                Hapus {deleteConfirm?.collection === 'members' ? 'Anggota' : deleteConfirm?.collection === 'events' ? 'Acara' : deleteConfirm?.collection === 'attendance' ? 'Catatan Kehadiran' : deleteConfirm?.collection === 'users' ? 'Admin' : 'Project'}?
               </h2>
               <p className="text-zinc-500 dark:text-zinc-400 mb-8">
-                Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus {deleteConfirm?.collection === 'members' ? 'anggota' : deleteConfirm?.collection === 'events' ? 'acara' : deleteConfirm?.collection === 'attendance' ? 'catatan kehadiran' : 'project'} ini dari database?
+                Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus {deleteConfirm?.collection === 'members' ? 'anggota' : deleteConfirm?.collection === 'events' ? 'acara' : deleteConfirm?.collection === 'attendance' ? 'catatan kehadiran' : deleteConfirm?.collection === 'users' ? 'admin' : 'project'} ini dari database?
               </p>
               
               <div className="flex gap-4">

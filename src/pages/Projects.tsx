@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Film, X, Info, ExternalLink } from 'lucide-react';
+import { Play, Film, X, Info, ExternalLink, Copy, Check } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -19,6 +19,13 @@ export default function Projects() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [activeCategory, setActiveCategory] = useState('Semua');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'alphabetical'>('newest');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     const q = query(collection(db, 'projects'), orderBy('title', sortBy === 'alphabetical' ? 'asc' : 'desc'));
@@ -58,9 +65,9 @@ export default function Projects() {
             className="flex flex-col items-center gap-4"
           >
             <div className="bg-accent/10 border border-accent/20 px-4 py-1 rounded-full text-accent text-xs font-bold uppercase tracking-widest">
-              Karya Ekskul
+              Video Kreatif
             </div>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">KARYA <span className="text-accent">EKSKUL</span></h1>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">VIDEO <span className="text-accent">KREATIF</span></h1>
             <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-lg leading-relaxed">
               Kumpulan karya video kolaborasi tim Cinegraph Nepal SMAN 1 Cileungsi.
             </p>
@@ -181,9 +188,19 @@ export default function Projects() {
                 <div className="aspect-video bg-black relative">
                   {/* Video Embed Logic (Simple iframe for YouTube/Drive) */}
                   <iframe
-                    src={selectedProject.videoUrl.includes('youtube.com') 
-                      ? selectedProject.videoUrl.replace('watch?v=', 'embed/') 
-                      : selectedProject.videoUrl}
+                    src={(() => {
+                      let url = selectedProject.videoUrl;
+                      if (url.includes('youtube.com/watch?v=')) {
+                        return url.replace('watch?v=', 'embed/');
+                      }
+                      if (url.includes('youtu.be/')) {
+                        return url.replace('youtu.be/', 'youtube.com/embed/');
+                      }
+                      if (url.includes('drive.google.com')) {
+                        return url.replace('/view', '/preview');
+                      }
+                      return url;
+                    })()}
                     title={selectedProject.title}
                     className="w-full h-full"
                     allowFullScreen
@@ -203,6 +220,13 @@ export default function Projects() {
                     >
                       <ExternalLink className="w-4 h-4" /> Buka di YouTube
                     </a>
+                    <button 
+                      onClick={() => handleCopyLink(selectedProject.videoUrl)}
+                      className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 px-6 py-3 rounded-xl font-bold flex items-center gap-3 transition-all shrink-0"
+                    >
+                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copied ? 'Tersalin!' : 'Salin Link'}
+                    </button>
                   </div>
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800 mb-8" />
                   <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed">

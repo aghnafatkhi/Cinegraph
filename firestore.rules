@@ -42,7 +42,7 @@ service cloud.firestore {
       return isAuthenticated() &&
          ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-          (request.auth.token.email == "cinegraphnepalforever@gmail.com" && request.auth.token.email_verified == true));
+          (request.auth.token.email == "aghna1011@gmail.com" && request.auth.token.email_verified == true));
     }
 
     function isValidUrl(url) {
@@ -99,6 +99,14 @@ service cloud.firestore {
              data.userId is string &&
              data.userName is string &&
              data.status is string &&
+             (data.timestamp is timestamp || data.timestamp is string) &&
+             (!('uangKas' in data) || (data.uangKas is map && data.uangKas.keys().hasAll(['amount', 'method']) && data.uangKas.amount is number && data.uangKas.method in ['Cash', 'QRIS', 'Online']));
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['userName', 'text', 'timestamp']) &&
+             data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 1000 &&
              (data.timestamp is timestamp || data.timestamp is string);
     }
 
@@ -135,6 +143,12 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isAdmin() && isValidEvent(request.resource.data);
       allow delete: if isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isValidComment(request.resource.data);
+        allow delete: if isAdmin();
+      }
     }
 
     // Connection test document
@@ -163,8 +177,8 @@ service cloud.firestore {
     }
 
     match /attendance/{attendanceId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin() && isValidAttendance(request.resource.data);
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
+      allow create: if (isAdmin() || (isAuthenticated() && request.auth.uid == request.resource.data.userId)) && isValidAttendance(request.resource.data);
       allow delete: if isAdmin();
     }
 

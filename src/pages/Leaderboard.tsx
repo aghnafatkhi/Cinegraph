@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, doc, setDoc, deleteDoc, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, setDoc, deleteDoc, where, addDoc, serverTimestamp, orderBy, updateDoc, arrayUnion, arrayRemove, getDoc, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { Trophy, Heart, LayoutGrid, List, Download, X, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trophy, Heart, LayoutGrid, List, Download, X, Maximize2, ChevronLeft, ChevronRight, MessageCircle, Send, User, Upload, Trash2 } from 'lucide-react';
 import { getHash, cn } from '../lib/utils';
+import { useAuth } from '../context/AuthContext';
+import { resizeImage } from '../lib/imageUtils';
 
 interface Member {
   id: string;
@@ -23,13 +25,36 @@ interface PhotoLike {
   memberId: string;
 }
 
+interface Comment {
+  id: string;
+  userName: string;
+  text: string;
+  timestamp: any;
+}
+
 export default function Leaderboard() {
+  const { isAdmin } = useAuth();
   const [leaderboard, setLeaderboard] = useState<PhotoLike[]>([]);
   const [allPhotos, setAllPhotos] = useState<PhotoLike[]>([]);
   const [likedPhotos, setLikedPhotos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'leaderboard' | 'feed'>('feed');
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoLike | null>(null);
+  
+  // Comment State
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+
+  // Upload State
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [memberProfile, setMemberProfile] = useState<any>(null);
+
+  // Delete Confirmation State
+  const [deleteConfirm, setDeleteConfirm] = useState<PhotoLike | null>(null);
 
   // Get the most up-to-date data for the selected photo from the allPhotos array
   const currentSelectedPhoto = selectedPhoto 
@@ -92,7 +117,7 @@ export default function Leaderboard() {
       updateData();
     });
 
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // Re-fetch likes to update likedPhotos for the new user
         const q = query(collection(db, 'likes'), where('userId', '==', user.uid));
@@ -100,8 +125,16 @@ export default function Leaderboard() {
           const userLikes = snapshot.docs.map(doc => doc.data().photoHash || getHash(doc.data().photoUrl));
           setLikedPhotos(userLikes);
         });
+
+        // Fetch member profile
+        const memberQ = query(collection(db, 'members'), where('email', '==', user.email));
+        const memberSnap = await getDocs(query(collection(db, 'members'), where('email', '==', user.email)));
+        if (!memberSnap.empty) {
+          setMemberProfile({ id: memberSnap.docs[0].id, ...memberSnap.docs[0].data() });
+        }
       } else {
         setLikedPhotos([]);
+        setMemberProfile(null);
       }
     });
 
@@ -112,6 +145,81 @@ export default function Leaderboard() {
     };
   }, []);
 
+  useEffect(() => {
+    if (selectedPhoto) {
+      const q = query(
+        collection(db, 'photo_comments', selectedPhoto.photoHash, 'comments'),
+        orderBy('timestamp', 'desc')
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedComments = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Comment[];
+        setComments(fetchedComments);
+      });
+      return () => unsubscribe();
+    } else {
+      setComments([]);
+      setShowComments(false);
+    }
+  }, [selectedPhoto]);
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPhoto || !commentText.trim() || !guestName.trim()) return;
+
+    setIsSubmittingComment(true);
+    try {
+      await addDoc(collection(db, 'photo_comments', selectedPhoto.photoHash, 'comments'), {
+        userName: guestName,
+        text: commentText,
+        timestamp: serverTimestamp()
+      });
+      setCommentText('');
+    } catch (error) {
+      console.error("Error adding comment:", error);
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !memberProfile) return;
+    
+    setIsUploading(true);
+    try {
+      const file = e.target.files[0];
+      const base64 = await resizeImage(file, 1600);
+      
+      await updateDoc(doc(db, 'members', memberProfile.id), {
+        featuredPhotos: arrayUnion(base64)
+      });
+      
+      alert("Foto berhasil diunggah ke feed!");
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Gagal mengunggah foto.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!deleteConfirm || !memberProfile) return;
+    
+    try {
+      await updateDoc(doc(db, 'members', memberProfile.id), {
+        featuredPhotos: arrayRemove(deleteConfirm.photoUrl)
+      });
+      setDeleteConfirm(null);
+      setSelectedPhoto(null);
+      alert("Foto berhasil dihapus.");
+    } catch (error) {
+      console.error("Delete failed:", error);
+      alert("Gagal menghapus foto.");
+    }
+  };
   const handleLike = async (item: PhotoLike) => {
     if (!auth.currentUser) {
       alert("Silakan login terlebih dahulu untuk menyukai foto.");
@@ -248,26 +356,41 @@ export default function Leaderboard() {
             EKSPLORASI <span className="text-accent">KARYA</span>
           </motion.h1>
 
-          {/* View Toggle */}
-          <div className="flex justify-center gap-2 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl w-fit mx-auto">
-            <button 
-              onClick={() => setViewMode('feed')}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all",
-                viewMode === 'feed' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-              )}
-            >
-              <LayoutGrid className="w-4 h-4" /> Feed Foto
-            </button>
-            <button 
-              onClick={() => setViewMode('leaderboard')}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all",
-                viewMode === 'leaderboard' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-              )}
-            >
-              <Trophy className="w-4 h-4" /> Leaderboard
-            </button>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-8">
+            {/* View Toggle */}
+            <div className="flex justify-center gap-2 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl w-fit">
+              <button 
+                onClick={() => setViewMode('feed')}
+                className={cn(
+                  "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all",
+                  viewMode === 'feed' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                )}
+              >
+                <LayoutGrid className="w-4 h-4" /> Feed Foto
+              </button>
+              <button 
+                onClick={() => setViewMode('leaderboard')}
+                className={cn(
+                  "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all",
+                  viewMode === 'leaderboard' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                )}
+              >
+                <Trophy className="w-4 h-4" /> Leaderboard
+              </button>
+            </div>
+
+            {/* Upload Button (Members Only) */}
+            {memberProfile && (
+              <label className="cursor-pointer flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black px-6 py-3 rounded-xl font-bold text-sm hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white transition-all shadow-lg active:scale-95">
+                {isUploading ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                Unggah Foto
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+              </label>
+            )}
           </div>
         </header>
 
@@ -429,20 +552,44 @@ export default function Leaderboard() {
                 >
                   <ChevronRight className="w-8 h-8" />
                 </button>
+
+                {/* Delete Button (Owner or Admin) */}
+                {(isAdmin || (memberProfile && memberProfile.id === currentSelectedPhoto.memberId)) && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDeleteConfirm(currentSelectedPhoto); }}
+                    className="absolute top-4 left-4 p-3 bg-red-600/80 hover:bg-red-600 text-white rounded-xl backdrop-blur-md opacity-0 group-hover/image:opacity-100 transition-all"
+                    title="Hapus Foto"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
               </div>
 
-              <div className="mt-6 flex items-center justify-between w-full px-4">
-                <Link 
-                  to={`/member/${currentSelectedPhoto.memberId}`}
-                  onClick={() => setSelectedPhoto(null)}
-                  className="flex items-center gap-4 group"
-                >
-                  <img src={currentSelectedPhoto.memberPhoto} className="w-12 h-12 rounded-full object-cover border-2 border-accent" referrerPolicy="no-referrer" />
-                  <div>
-                    <p className="font-black text-white text-lg group-hover:text-accent transition-colors">{currentSelectedPhoto.memberName}</p>
-                    <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest">Lihat Profil</p>
-                  </div>
-                </Link>
+              <div className="mt-6 flex flex-col md:flex-row items-center justify-between w-full px-4 gap-6">
+                <div className="flex items-center gap-6">
+                  <Link 
+                    to={`/member/${currentSelectedPhoto.memberId}`}
+                    onClick={() => setSelectedPhoto(null)}
+                    className="flex items-center gap-4 group"
+                  >
+                    <img src={currentSelectedPhoto.memberPhoto} className="w-12 h-12 rounded-full object-cover border-2 border-accent" referrerPolicy="no-referrer" />
+                    <div>
+                      <p className="font-black text-white text-lg group-hover:text-accent transition-colors">{currentSelectedPhoto.memberName}</p>
+                      <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest">Lihat Profil</p>
+                    </div>
+                  </Link>
+
+                  <button 
+                    onClick={() => setShowComments(!showComments)}
+                    className={cn(
+                      "flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all",
+                      showComments ? "bg-white text-black border-white" : "bg-white/5 border-white/10 text-white hover:bg-white/10"
+                    )}
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    <span className="font-bold">{comments.length} Komentar</span>
+                  </button>
+                </div>
 
                 <button 
                   onClick={() => handleLike(currentSelectedPhoto)}
@@ -457,8 +604,112 @@ export default function Leaderboard() {
                   <span className="font-black text-xl">{currentSelectedPhoto.likes}</span>
                 </button>
               </div>
+
+              {/* Comments Section */}
+              <AnimatePresence>
+                {showComments && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="w-full mt-8 bg-white/5 border border-white/10 rounded-3xl overflow-hidden"
+                  >
+                    <div className="p-6 max-h-[40vh] overflow-y-auto custom-scrollbar space-y-4">
+                      {comments.length > 0 ? (
+                        comments.map((comment) => (
+                          <div key={comment.id} className="flex gap-3">
+                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                              <User className="w-4 h-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-bold text-white text-sm">{comment.userName}</span>
+                                <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">
+                                  {comment.timestamp?.toDate ? comment.timestamp.toDate().toLocaleDateString() : 'Baru saja'}
+                                </span>
+                              </div>
+                              <p className="text-zinc-400 text-sm">{comment.text}</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-zinc-500 text-center py-8">Belum ada komentar.</p>
+                      )}
+                    </div>
+
+                    <form onSubmit={handleAddComment} className="p-6 border-t border-white/10 bg-white/5 flex gap-3">
+                      <input
+                        type="text"
+                        placeholder="Nama"
+                        required
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        className="w-24 md:w-32 bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-accent"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Tulis komentar..."
+                        required
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        className="flex-grow bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-accent"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSubmittingComment}
+                        className="bg-accent hover:bg-accent/90 text-white p-2 rounded-xl transition-all disabled:opacity-50"
+                      >
+                        <Send className="w-5 h-5" />
+                      </button>
+                    </form>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeleteConfirm(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-zinc-900 p-10 rounded-[2.5rem] shadow-2xl z-10 text-center"
+            >
+              <div className="bg-red-600/10 border border-red-600/20 p-4 rounded-2xl w-fit mx-auto mb-6">
+                <Trash2 className="w-10 h-10 text-red-600" />
+              </div>
+              <h3 className="text-2xl font-black mb-4 text-zinc-900 dark:text-white tracking-tight">Hapus Foto?</h3>
+              <p className="text-zinc-500 mb-8 leading-relaxed">
+                Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus foto ini dari feed?
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="w-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white font-bold py-4 rounded-xl transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleDeletePhoto}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-red-600/20"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </motion.div>

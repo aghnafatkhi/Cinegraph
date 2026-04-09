@@ -7,6 +7,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { QrCode, ScanLine, CheckCircle2, AlertCircle, Clock, Calendar as CalendarIcon, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 interface AttendanceRecord {
   id: string;
@@ -14,12 +15,25 @@ interface AttendanceRecord {
   userName: string;
   timestamp: any;
   status: string;
+  uangKas?: {
+    amount: number;
+    method: 'Cash' | 'QRIS' | 'Online';
+  };
+}
+
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
 }
 
 export default function Attendance() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [scanResult, setScanResult] = useState<{ success: boolean, message: string } | null>(null);
+  const [scanResult, setScanResult] = useState<{ success: boolean, message: string, userId?: string, userName?: string } | null>(null);
+  const [showKasModal, setShowKasModal] = useState(false);
+  const [kasAmount, setKasAmount] = useState('2000');
+  const [kasMethod, setKasMethod] = useState<'Cash' | 'QRIS' | 'Online'>('Cash');
+  const [isPaying, setIsPaying] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [recentScans, setRecentScans] = useState<AttendanceRecord[]>([]);
   const navigate = useNavigate();
 
@@ -53,13 +67,96 @@ export default function Attendance() {
         })) as AttendanceRecord[];
         setRecentScans(records);
       }, (error) => {
-        console.error("Error fetching attendance:", error);
+        handleFirestoreError(error, OperationType.LIST, 'attendance');
       });
 
       return () => unsubscribe();
     }
   }, [isAdmin]);
 
+  const handleSaveAttendance = async (includeKas: boolean) => {
+    if (!scanResult?.userId) return;
+    
+    setIsSubmitting(true);
+    try {
+      const attendanceData: any = {
+        userId: scanResult.userId,
+        userName: scanResult.userName,
+        timestamp: serverTimestamp(),
+        status: 'Hadir'
+      };
+
+      if (includeKas) {
+        attendanceData.uangKas = {
+          amount: parseInt(kasAmount),
+          method: kasMethod
+        };
+
+        if (kasMethod === 'Online') {
+          setIsPaying(true);
+          const response = await fetch('/api/payment/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: parseInt(kasAmount),
+              orderId: `KAS-${Date.now()}`,
+              customerDetails: {
+                first_name: scanResult.userName,
+                email: ''
+              }
+            })
+          });
+          
+          const data = await response.json();
+          if (data.token) {
+            (window as any).snap.pay(data.token, {
+              onSuccess: async (result: any) => {
+                await addDoc(collection(db, 'attendance'), attendanceData);
+                setShowKasModal(false);
+                setScanResult({
+                  success: true,
+                  message: `Presensi & Pembayaran Online Berhasil: ${scanResult.userName}`
+                });
+                setIsPaying(false);
+              },
+              onPending: (result: any) => {
+                alert("Pembayaran tertunda. Silakan selesaikan pembayaran.");
+                setIsPaying(false);
+              },
+              onError: (result: any) => {
+                alert("Pembayaran gagal.");
+                setIsPaying(false);
+              },
+              onClose: () => {
+                setIsPaying(false);
+              }
+            });
+          }
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      await addDoc(collection(db, 'attendance'), {
+        ...attendanceData
+      });
+
+      setShowKasModal(false);
+      setScanResult({
+        success: true,
+        message: `Kehadiran ${scanResult.userName} berhasil dicatat! ${includeKas ? '(Termasuk Uang Kas)' : ''}`
+      });
+      
+      setTimeout(() => {
+        setScanResult(null);
+      }, 3000);
+    } catch (error) {
+      console.error("Error saving attendance:", error);
+      setScanResult({ success: false, message: 'Gagal mencatat kehadiran.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   useEffect(() => {
     if (isAdmin && !loading) {
       const scanner = new Html5QrcodeScanner(
@@ -95,15 +192,13 @@ export default function Attendance() {
             }
           }
           
-          await addDoc(collection(db, 'attendance'), {
+          setScanResult({ 
+            success: true, 
+            message: `Berhasil! ${userName} telah hadir.`,
             userId: scannedUserId,
-            userName: userName,
-            timestamp: serverTimestamp(),
-            status: 'Hadir'
+            userName: userName
           });
-
-          console.log("Attendance recorded successfully for:", scannedUserId);
-          setScanResult({ success: true, message: 'Kehadiran berhasil dicatat!' });
+          setShowKasModal(true);
           
           setTimeout(() => {
             setScanResult(null);
@@ -186,6 +281,106 @@ export default function Attendance() {
                   {scanResult.message}
                 </motion.div>
               )}
+
+              {/* Uang Kas Modal */}
+              {showKasModal && scanResult && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                  <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="bg-white dark:bg-zinc-900 rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-zinc-200 dark:border-zinc-800"
+                  >
+                    <div className="text-center mb-8">
+                      <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle2 className="w-8 h-8 text-accent" />
+                      </div>
+                      <h3 className="text-2xl font-black mb-2">{scanResult.userName}</h3>
+                      <p className="text-zinc-500">Berhasil discan. Catat uang kas?</p>
+                    </div>
+
+                    <div className="space-y-6 mb-8">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Nominal Uang Kas</label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-zinc-400">Rp</span>
+                          <input
+                            type="number"
+                            value={kasAmount}
+                            onChange={(e) => setKasAmount(e.target.value)}
+                            className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-zinc-900 dark:text-white font-bold focus:outline-none focus:border-accent"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <button
+                          onClick={() => setKasMethod('Cash')}
+                          className={cn(
+                            "py-3 rounded-xl font-bold text-sm border transition-all",
+                            kasMethod === 'Cash' 
+                              ? "bg-accent border-accent text-white" 
+                              : "bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500"
+                          )}
+                        >
+                          Cash
+                        </button>
+                        <button
+                          onClick={() => setKasMethod('QRIS')}
+                          className={cn(
+                            "py-3 rounded-xl font-bold text-sm border transition-all",
+                            kasMethod === 'QRIS' 
+                              ? "bg-accent border-accent text-white" 
+                              : "bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500"
+                          )}
+                        >
+                          QRIS
+                        </button>
+                        <button
+                          onClick={() => setKasMethod('Online')}
+                          className={cn(
+                            "py-3 rounded-xl font-bold text-sm border transition-all",
+                            kasMethod === 'Online' 
+                              ? "bg-accent border-accent text-white" 
+                              : "bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500"
+                          )}
+                        >
+                          Online
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <button
+                        disabled={isSubmitting || isPaying}
+                        onClick={() => handleSaveAttendance(true)}
+                        className="w-full bg-accent hover:bg-accent/90 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                      >
+                        {isSubmitting || isPaying ? (
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          kasMethod === 'Online' ? 'Bayar & Simpan' : 'Simpan dengan Uang Kas'
+                        )}
+                      </button>
+                      <button
+                        disabled={isSubmitting || isPaying}
+                        onClick={() => handleSaveAttendance(false)}
+                        className="w-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white py-4 rounded-xl font-bold transition-all"
+                      >
+                        Hadir Saja (Tanpa Kas)
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowKasModal(false);
+                          setScanResult(null);
+                        }}
+                        className="w-full py-2 text-zinc-400 text-sm font-medium hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
             </motion.div>
 
             {/* Recent Scans Section */}
@@ -199,6 +394,22 @@ export default function Attendance() {
                   <Clock className="w-6 h-6" />
                 </div>
                 <h2 className="text-2xl font-black">Kehadiran Hari Ini</h2>
+              </div>
+
+              {/* Uang Kas Summary Today */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-white dark:bg-zinc-950 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Kas Hari Ini</p>
+                  <p className="text-xl font-black text-accent">
+                    Rp {recentScans.reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-zinc-950 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Hadir</p>
+                  <p className="text-xl font-black text-zinc-900 dark:text-white">
+                    {recentScans.length} <span className="text-xs font-normal text-zinc-500">Anggota</span>
+                  </p>
+                </div>
               </div>
 
               <div className="flex-grow overflow-y-auto pr-2 space-y-3">

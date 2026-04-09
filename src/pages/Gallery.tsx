@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
-import { ExternalLink, Calendar, Search, Image as ImageIcon, Grid, List, Heart } from 'lucide-react';
+import { ExternalLink, Calendar, Search, Image as ImageIcon, Grid, List, Heart, MessageCircle, X, Send, User } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -44,7 +44,7 @@ export default function Gallery() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [sortBy]);
 
   const years = ['Semua Tahun', ...new Set(events.map(event => new Date(event.date).getFullYear().toString()))].sort((a, b) => b.localeCompare(a));
   const categories = ['Semua Kategori', ...new Set(events.map(event => event.category || 'Kegiatan'))].sort();
@@ -271,21 +271,23 @@ export default function Gallery() {
                         {event.description || "Dokumentasi kegiatan sekolah oleh tim Cinegraph Nepal."}
                       </p>
                       
-                      {event.googleDriveLink ? (
-                        <a
-                          href={`/halaman-transisi.html?url=${encodeURIComponent(event.googleDriveLink)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-fit inline-flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-4 md:px-8 py-2 md:py-3 rounded-xl text-xs md:text-sm font-black transition-all active:scale-95 shadow-lg"
-                        >
-                          <span className="hidden md:inline">Lihat Galeri</span>
-                          <span className="md:hidden">Lihat</span> <ExternalLink className="w-3 h-3 md:w-4 md:h-4" />
-                        </a>
-                      ) : (
-                        <div className="w-fit text-zinc-500 text-[10px] md:text-xs font-bold uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800 py-1 px-2 md:py-2 md:px-4 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                          Belum Tersedia
-                        </div>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {event.googleDriveLink ? (
+                          <a
+                            href={`/halaman-transisi.html?url=${encodeURIComponent(event.googleDriveLink)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-fit inline-flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-4 md:px-8 py-2 md:py-3 rounded-xl text-xs md:text-sm font-black transition-all active:scale-95 shadow-lg"
+                          >
+                            <span className="hidden md:inline">Lihat Galeri</span>
+                            <span className="md:hidden">Lihat</span> <ExternalLink className="w-3 h-3 md:w-4 md:h-4" />
+                          </a>
+                        ) : (
+                          <div className="w-fit text-zinc-500 text-[10px] md:text-xs font-bold uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800 py-1 px-2 md:py-2 md:px-4 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                            Belum Tersedia
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
@@ -304,7 +306,6 @@ export default function Gallery() {
         </div>
       )}
 
-      {/* Support Section */}
       <section className="mt-32 max-w-4xl mx-auto">
         <div className="bg-gradient-to-br from-accent to-accent/60 rounded-[3rem] p-12 text-center relative overflow-hidden shadow-2xl shadow-accent/20">
           <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">

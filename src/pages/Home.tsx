@@ -4,6 +4,7 @@ import { Play, Camera, Users, Image as ImageIcon, ArrowRight, Calendar, External
 import { Link } from 'react-router-dom';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import { Helmet } from 'react-helmet-async';
 
 interface Event {
   id: string;
@@ -92,6 +93,16 @@ export default function Home() {
       transition={{ duration: 0.5 }}
       className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen transition-colors duration-300"
     >
+      <Helmet>
+        <title>Cinegraph Nepal - Ekstrakurikuler Cinematography SMAN 1 Cileungsi</title>
+        <meta name="description" content="Website resmi Cinegraph Nepal SMAN 1 Cileungsi. Dokumentasi acara, portofolio anggota, dan karya video kreatif siswa." />
+        <meta name="keywords" content="Cinegraph Nepal, SMAN 1 Cileungsi, Cinematography, Ekstrakurikuler, Video, Film, Dokumentasi Sekolah" />
+        <meta property="og:title" content="Cinegraph Nepal - Cinematography SMAN 1 Cileungsi" />
+        <meta property="og:description" content="Eksplorasi kreativitas visual bersama Cinegraph Nepal. Lihat karya terbaru dan dokumentasi acara kami." />
+        <meta property="og:image" content="https://picsum.photos/seed/cinema/1200/630" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+      </Helmet>
       {/* Hero Section */}
       <section ref={targetRef} className="relative min-h-screen flex flex-col overflow-hidden pt-32 pb-12">
         {/* Background Image with Overlay */}

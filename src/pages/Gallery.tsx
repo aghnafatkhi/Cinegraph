@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
+import { Helmet } from 'react-helmet-async';
 import { ExternalLink, Calendar, Search, Image as ImageIcon, Grid, List, Heart, MessageCircle, X, Send, User } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -63,6 +64,12 @@ export default function Gallery() {
       transition={{ duration: 0.5 }}
       className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
     >
+      <Helmet>
+        <title>Galeri Dokumentasi - Cinegraph Nepal</title>
+        <meta name="description" content="Lihat kumpulan dokumentasi acara dan kegiatan SMAN 1 Cileungsi yang diabadikan oleh tim Cinegraph Nepal." />
+        <meta property="og:title" content="Galeri Dokumentasi - Cinegraph Nepal" />
+        <meta property="og:description" content="Kumpulan momen berharga di SMAN 1 Cileungsi dalam lensa Cinegraph Nepal." />
+      </Helmet>
       <div className="max-w-7xl mx-auto">
         <header className="mb-16 text-center">
           <motion.div

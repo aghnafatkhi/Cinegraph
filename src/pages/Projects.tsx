@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
+import { Helmet } from 'react-helmet-async';
 import { Play, Film, X, Info, ExternalLink, Copy, Check } from 'lucide-react';
 
 interface Project {
@@ -57,6 +58,12 @@ export default function Projects() {
       transition={{ duration: 0.5 }}
       className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
     >
+      <Helmet>
+        <title>Karya Video & Film - Cinegraph Nepal</title>
+        <meta name="description" content="Tonton karya video kreatif, film pendek, dan aftermovie acara SMAN 1 Cileungsi hasil produksi Cinegraph Nepal." />
+        <meta property="og:title" content="Karya Video & Film - Cinegraph Nepal" />
+        <meta property="og:description" content="Koleksi karya sinematografi terbaik dari siswa SMAN 1 Cileungsi." />
+      </Helmet>
       <div className="max-w-7xl mx-auto">
         <header className="mb-16 text-center">
           <motion.div

@@ -1,5 +1,6 @@
 {
-  "name": "Cinegraph Nepal - React - Flash 3",
+  "name": "Use - Cinegraph Nepal",
   "description": "Website resmi ekstrakurikuler Cinematography SMAN 1 Cileungsi untuk galeri foto acara, portofolio anggota, dan karya video.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

@@ -277,7 +277,7 @@ export default function MemberDetail() {
                   <div className="p-3 bg-accent/10 rounded-2xl text-accent">
                     <Camera className="w-6 h-6" />
                   </div>
-                  <h2 className="text-2xl font-black text-zinc-900 dark:text-white">Galeri Unggulan</h2>
+                  <h2 className="text-2xl font-black text-zinc-900 dark:text-white">Dokumentasi Unggulan</h2>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

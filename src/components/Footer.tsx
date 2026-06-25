@@ -38,9 +38,9 @@ export default function Footer() {
           <h4 className="text-zinc-900 dark:text-white font-bold mb-6">Navigasi</h4>
           <ul className="flex flex-col gap-4 text-sm text-zinc-500">
             <li><Link to="/" className="hover:text-accent transition-colors">Beranda</Link></li>
-            <li><Link to="/gallery" className="hover:text-accent transition-colors">Galeri Foto</Link></li>
+            <li><Link to="/gallery" className="hover:text-accent transition-colors">Dokumentasi</Link></li>
             <li><Link to="/members" className="hover:text-accent transition-colors">Portofolio Anggota</Link></li>
-            <li><Link to="/projects" className="hover:text-accent transition-colors">Karya Video</Link></li>
+            <li><Link to="/projects" className="hover:text-accent transition-colors">Aftermovie</Link></li>
           </ul>
         </div>
 

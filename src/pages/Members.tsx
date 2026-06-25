@@ -177,57 +177,50 @@ export default function Members() {
             <p className="text-zinc-500 font-medium">Memuat data tim...</p>
           </div>
         ) : filteredMembers.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {filteredMembers.map((member, index) => {
-              const firstName = member.name.split(' ')[0];
-              const nameParts = member.name.split(' ');
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredMembers.map((member) => {
               return (
                 <div
                   key={member.id}
                   onClick={() => navigate(`/member/${member.id}`)}
-                  className="group cursor-pointer rounded-[2rem] overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-accent/50 hover:shadow-2xl transition-all relative flex flex-col h-[450px]"
+                  className="group cursor-pointer rounded-3xl p-8 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/80 hover:border-accent hover:shadow-xl hover:shadow-accent/5 transition-all relative flex flex-col justify-between h-[240px] overflow-hidden"
                 >
-                  {/* Top Section (Orange + Black Bar + Photo) */}
-                  <div className="relative h-[300px] w-full bg-[#F59E0B] overflow-hidden shrink-0">
-                    {/* Black Bar */}
-                    <div className="absolute left-0 top-0 bottom-0 w-20 bg-black z-10 flex items-center justify-center">
-                      <div className="text-white font-black text-5xl tracking-tight -rotate-90 whitespace-nowrap capitalize max-w-[280px] truncate">
-                        {firstName}
-                      </div>
+                  {/* Decorative background circle */}
+                  <div className="absolute -right-12 -bottom-12 w-40 h-40 rounded-full bg-accent/5 group-hover:bg-accent/10 transition-all duration-500" />
+                  
+                  <div>
+                    {/* Role Badge and Kelas */}
+                    <div className="flex items-center justify-between gap-2 mb-4">
+                      <span className="bg-accent/10 dark:bg-accent/20 border border-accent/25 text-accent px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider truncate max-w-[150px]" title={member.role}>
+                        {member.role}
+                      </span>
+                      {member.kelas && (
+                        <span className="text-zinc-400 dark:text-zinc-500 font-mono text-xs">
+                          {member.kelas}
+                        </span>
+                      )}
                     </div>
-                    
-                    {/* Transparent PNG Photo - Fixed sizing and position */}
-                    <div className="absolute bottom-0 right-[-20px] h-[185%] w-[calc(100%-10px)] z-20">
-                      <img
-                        src={member.photoUrl}
-                        alt={member.name}
-                        className="w-full h-full object-contain object-bottom group-hover:scale-105 transition-transform duration-500 origin-bottom drop-shadow-2xl"
-                        referrerPolicy="no-referrer"
-                      />
+
+                    {/* Member Name */}
+                    <div className="space-y-1">
+                      <h3 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white capitalize group-hover:text-accent transition-colors line-clamp-2">
+                        {member.name}
+                      </h3>
                     </div>
                   </div>
 
-                  {/* Bottom Section (White with Text) */}
-                  <div className="relative flex-grow bg-white dark:bg-zinc-900 p-6 z-30 flex flex-col justify-end overflow-hidden">
-                    {/* Subtle Background Pattern (Large Circles) */}
-                    <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-[#F59E0B]/10 dark:bg-[#F59E0B]/5"></div>
-                    <div className="absolute left-10 -top-10 w-32 h-32 rounded-full bg-[#F59E0B]/10 dark:bg-[#F59E0B]/5"></div>
-                    
-                    <div className="relative z-10 flex justify-between items-end h-full w-full overflow-hidden">
-                      <div className="flex flex-col justify-end min-w-0 w-full">
-                        <h3 className="text-2xl font-black leading-none text-black dark:text-white mb-2 capitalize truncate w-full" title={member.name}>
-                          {member.name}
-                        </h3>
-                        <p className="text-[#F59E0B] font-bold text-sm mb-1 uppercase truncate">{member.role}</p>
-                        {member.kelas && (
-                          <p className="text-zinc-500 dark:text-zinc-400 font-medium text-sm mb-2 truncate">{member.kelas}</p>
-                        )}
-                        {member.phone && (
-                          <p className="text-black dark:text-white font-black text-lg truncate">{member.phone}</p>
-                        )}
-                      </div>
-                    </div>
+                  {/* Skills/Details preview */}
+                  <div className="relative z-10 flex flex-wrap gap-1.5 mt-4">
+                    {member.skills && member.skills.slice(0, 2).map((skill, i) => (
+                      <span key={i} className="text-[10px] bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2.5 py-1 rounded-md font-bold uppercase tracking-wider border border-zinc-100 dark:border-zinc-700/80">
+                        {skill}
+                      </span>
+                    ))}
+                    {(!member.skills || member.skills.length === 0) && (
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
+                        Cinegraph Member
+                      </span>
+                    )}
                   </div>
                 </div>
               );

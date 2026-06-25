@@ -35,6 +35,7 @@ export default function Attendance() {
   const [isPaying, setIsPaying] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recentScans, setRecentScans] = useState<AttendanceRecord[]>([]);
+  const scannerRef = React.useRef<Html5QrcodeScanner | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -118,6 +119,12 @@ export default function Attendance() {
                   message: `Presensi & Pembayaran Online Berhasil: ${scanResult.userName}`
                 });
                 setIsPaying(false);
+                if (scannerRef.current) {
+                  scannerRef.current.resume();
+                }
+                setTimeout(() => {
+                  setScanResult(null);
+                }, 3000);
               },
               onPending: (result: any) => {
                 alert("Pembayaran tertunda. Silakan selesaikan pembayaran.");
@@ -147,6 +154,11 @@ export default function Attendance() {
         message: `Kehadiran ${scanResult.userName} berhasil dicatat! ${includeKas ? '(Termasuk Uang Kas)' : ''}`
       });
       
+      // Resume scanner after closing modal
+      if (scannerRef.current) {
+        scannerRef.current.resume();
+      }
+
       setTimeout(() => {
         setScanResult(null);
       }, 3000);
@@ -164,6 +176,7 @@ export default function Attendance() {
         { fps: 10, qrbox: { width: 250, height: 250 } },
         false
       );
+      scannerRef.current = scanner;
 
       scanner.render(async (decodedText) => {
         // Prevent multiple rapid scans
@@ -194,16 +207,12 @@ export default function Attendance() {
           
           setScanResult({ 
             success: true, 
-            message: `Berhasil! ${userName} telah hadir.`,
+            message: `Scanned: ${userName}`,
             userId: scannedUserId,
             userName: userName
           });
           setShowKasModal(true);
-          
-          setTimeout(() => {
-            setScanResult(null);
-            scanner.resume();
-          }, 3000);
+          // Removed the timeout that clears scanResult automatically
 
         } catch (error: any) {
           console.error("Error recording attendance:", error);
@@ -212,6 +221,7 @@ export default function Attendance() {
             errorMessage = 'Error: Izin ditolak. Pastikan Anda adalah Admin.';
           }
           setScanResult({ success: false, message: errorMessage });
+          // Auto resume after error
           setTimeout(() => {
             setScanResult(null);
             scanner.resume();
@@ -223,6 +233,7 @@ export default function Attendance() {
 
       return () => {
         scanner.clear().catch(console.error);
+        scannerRef.current = null;
       };
     }
   }, [isAdmin, loading]);
@@ -258,27 +269,71 @@ export default function Attendance() {
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="bg-zinc-50 dark:bg-zinc-900 rounded-[2.5rem] p-8 border border-zinc-200 dark:border-zinc-800 shadow-xl"
+              className="bg-zinc-50 dark:bg-zinc-900 rounded-[2.5rem] p-8 border border-zinc-200 dark:border-zinc-800 shadow-xl relative overflow-hidden"
             >
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-accent/10 rounded-2xl text-accent">
-                  <ScanLine className="w-6 h-6" />
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+              
+              <div className="flex items-center justify-between mb-8 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-accent text-white rounded-2xl shadow-lg shadow-accent/20">
+                    <ScanLine className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black tracking-tight">Kamera Scan</h2>
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-zinc-400">Ready to Scan</p>
+                  </div>
                 </div>
-                <h2 className="text-2xl font-black">Scan QR Code</h2>
               </div>
               
-              <div className="bg-white dark:bg-black rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 mb-6">
-                <div id="reader" className="w-full"></div>
+              <div className="relative group mb-8">
+                {/* Scanner Frame */}
+                <div className="absolute -inset-1 bg-gradient-to-tr from-accent/20 via-transparent to-accent/20 rounded-[2rem] blur-sm opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div className="relative bg-black rounded-[2rem] overflow-hidden border-4 border-white dark:border-zinc-800 shadow-2xl">
+                  <div id="reader" className="w-full aspect-square md:aspect-auto"></div>
+                  
+                  {/* Custom Overlay */}
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    {/* Corners */}
+                    <div className="absolute top-10 left-10 w-8 h-8 border-t-4 border-l-4 border-accent rounded-tl-xl drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]"></div>
+                    <div className="absolute top-10 right-10 w-8 h-8 border-t-4 border-r-4 border-accent rounded-tr-xl drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]"></div>
+                    <div className="absolute bottom-10 left-10 w-8 h-8 border-b-4 border-l-4 border-accent rounded-bl-xl drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]"></div>
+                    <div className="absolute bottom-10 right-10 w-8 h-8 border-b-4 border-r-4 border-accent rounded-br-xl drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]"></div>
+                    
+                    {/* Scanning Line Animation */}
+                    {!showKasModal && !scanResult && (
+                      <motion.div 
+                        animate={{ top: ['25%', '75%', '25%'] }}
+                        transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+                        className="absolute left-[15%] right-[15%] h-0.5 bg-accent/60 shadow-[0_0_15px_rgba(var(--accent-rgb),0.8)] z-20"
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {scanResult && (
+              {scanResult && !showKasModal && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`p-4 rounded-xl flex items-center gap-3 font-bold ${scanResult.success ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}
+                  className={cn(
+                    "p-6 rounded-2xl flex items-center gap-4 font-bold shadow-lg border relative z-10",
+                    scanResult.success 
+                      ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" 
+                      : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
+                  )}
                 >
-                  {scanResult.success ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                  {scanResult.message}
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    scanResult.success ? "bg-green-500 text-white" : "bg-red-500 text-white"
+                  )}>
+                    {scanResult.success ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs uppercase tracking-widest opacity-60">Status Scan</span>
+                    <span className="text-sm">{scanResult.message}</span>
+                  </div>
                 </motion.div>
               )}
 
@@ -372,6 +427,9 @@ export default function Attendance() {
                         onClick={() => {
                           setShowKasModal(false);
                           setScanResult(null);
+                          if (scannerRef.current) {
+                            scannerRef.current.resume();
+                          }
                         }}
                         className="w-full py-2 text-zinc-400 text-sm font-medium hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                       >

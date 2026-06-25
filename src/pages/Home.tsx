@@ -1,10 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, useScroll, useTransform, useSpring, useInView, animate } from 'motion/react';
-import { Play, Camera, Users, Image as ImageIcon, ArrowRight, Calendar, ExternalLink } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Helmet } from 'react-helmet-async';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  motion,
+  useScroll,
+  useTransform,
+  useSpring,
+  useInView,
+  animate,
+  AnimatePresence,
+} from "motion/react";
+import {
+  Play,
+  Camera,
+  Users,
+  Image as ImageIcon,
+  ArrowRight,
+  Calendar,
+  ExternalLink,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+} from "firebase/firestore";
+import { db } from "../firebase";
+import { Helmet } from "react-helmet-async";
 
 interface Event {
   id: string;
@@ -14,13 +36,22 @@ interface Event {
   description?: string;
 }
 
-function Counter({ value, suffix = "" }: { value: number | string, suffix?: string }) {
+function Counter({
+  value,
+  suffix = "",
+}: {
+  value: number | string;
+  suffix?: string;
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-100px" });
-  
+
   // Extract number from string if needed (e.g., "12k" -> 12)
-  const numericValue = typeof value === 'string' ? parseFloat(value.replace(/[^\d.]/g, '')) : value;
-  const isK = typeof value === 'string' && value.toLowerCase().includes('k');
+  const numericValue =
+    typeof value === "string"
+      ? parseFloat(value.replace(/[^\d.]/g, ""))
+      : value;
+  const isK = typeof value === "string" && value.toLowerCase().includes("k");
 
   useEffect(() => {
     if (inView && ref.current) {
@@ -29,7 +60,9 @@ function Counter({ value, suffix = "" }: { value: number | string, suffix?: stri
         ease: "easeOut",
         onUpdate(latest) {
           if (ref.current) {
-            const formatted = isK ? latest.toFixed(1) + 'k' : Math.floor(latest).toString();
+            const formatted = isK
+              ? latest.toFixed(1) + "k"
+              : Math.floor(latest).toString();
             ref.current.textContent = formatted + suffix;
           }
         },
@@ -42,180 +75,260 @@ function Counter({ value, suffix = "" }: { value: number | string, suffix?: stri
 }
 
 export default function Home() {
-  const [latestEvent, setLatestEvent] = useState<Event | null>(null);
+  const [heroEvents, setHeroEvents] = useState<Event[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const targetRef = useRef(null);
+
+  useEffect(() => {
+    if (heroEvents.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroEvents.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [heroEvents.length]);
+
   const { scrollYProgress } = useScroll({
     target: targetRef,
-    offset: ["start start", "end start"]
+    offset: ["start start", "end start"],
   });
-
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   useEffect(() => {
-    const q = query(collection(db, 'events'), orderBy('date', 'desc'), limit(1));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        setLatestEvent({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Event);
-      }
-    }, (error) => console.error("Error fetching latest event:", error));
+    const q = query(
+      collection(db, "events"),
+      orderBy("date", "desc"),
+      limit(3),
+    );
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const eventsData = snapshot.docs.map(
+            (doc) => ({ id: doc.id, ...doc.data() }) as Event,
+          );
+          setHeroEvents(eventsData);
+        }
+      },
+      (error) => console.error("Error fetching latest events:", error),
+    );
     return () => unsubscribe();
   }, []);
 
   const features = [
     {
-      title: 'Dokumentasi Acara',
-      description: 'Dokumentasi lengkap setiap momen berharga di SMAN 1 Cileungsi.',
+      title: "Dokumentasi Acara",
+      description:
+        "Dokumentasi lengkap setiap momen berharga di SMAN 1 Cileungsi.",
       icon: <ImageIcon className="w-8 h-8 text-accent" />,
-      link: '/gallery',
-      bg: 'bg-zinc-50 dark:bg-zinc-900/50'
+      link: "/gallery",
+      bg: "bg-zinc-50 dark:bg-zinc-900/50",
     },
     {
-      title: 'Portofolio Anggota',
-      description: 'Kenali tim kreatif kami dan lihat hasil karya terbaik mereka.',
+      title: "Portofolio Anggota",
+      description:
+        "Kenali tim kreatif kami dan lihat hasil karya terbaik mereka.",
       icon: <Users className="w-8 h-8 text-accent" />,
-      link: '/members',
-      bg: 'bg-zinc-50 dark:bg-zinc-900/50'
+      link: "/members",
+      bg: "bg-zinc-50 dark:bg-zinc-900/50",
     },
     {
-      title: 'Video Kreatif',
-      description: 'Tonton video profil sekolah, ekskul, dan film pendek karya kami.',
+      title: "Aftermovie Kegiatan",
+      description:
+        "Tonton aftermovie kegiatan, acara sekolah, dan karya film pendek kami.",
       icon: <Play className="w-8 h-8 text-accent" />,
-      link: '/projects',
-      bg: 'bg-zinc-50 dark:bg-zinc-900/50'
-    }
+      link: "/projects",
+      bg: "bg-zinc-50 dark:bg-zinc-900/50",
+    },
   ];
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
       className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen transition-colors duration-300"
     >
       <Helmet>
-        <title>Cinegraph Nepal - Ekstrakurikuler Cinematography SMAN 1 Cileungsi</title>
-        <meta name="description" content="Website resmi Cinegraph Nepal SMAN 1 Cileungsi. Dokumentasi acara, portofolio anggota, dan karya video kreatif siswa." />
-        <meta name="keywords" content="Cinegraph Nepal, SMAN 1 Cileungsi, Cinematography, Ekstrakurikuler, Video, Film, Dokumentasi Sekolah" />
-        <meta property="og:title" content="Cinegraph Nepal - Cinematography SMAN 1 Cileungsi" />
-        <meta property="og:description" content="Eksplorasi kreativitas visual bersama Cinegraph Nepal. Lihat karya terbaru dan dokumentasi acara kami." />
-        <meta property="og:image" content="https://picsum.photos/seed/cinema/1200/630" />
+        <title>
+          Cinegraph Nepal - Ekstrakurikuler Cinematography SMAN 1 Cileungsi
+        </title>
+        <meta
+          name="description"
+          content="Website resmi Cinegraph Nepal SMAN 1 Cileungsi. Dokumentasi acara, portofolio anggota, dan kumpulan aftermovie kegiatan."
+        />
+        <meta
+          name="keywords"
+          content="Cinegraph Nepal, SMAN 1 Cileungsi, Cinematography, Ekstrakurikuler, Aftermovie, Film, Dokumentasi Sekolah"
+        />
+        <meta
+          property="og:title"
+          content="Cinegraph Nepal - Cinematography SMAN 1 Cileungsi"
+        />
+        <meta
+          property="og:description"
+          content="Eksplorasi kreativitas visual bersama Cinegraph Nepal. Lihat karya terbaru dan dokumentasi acara kami."
+        />
+        <meta
+          property="og:image"
+          content="https://picsum.photos/seed/cinema/1200/630"
+        />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
       {/* Hero Section */}
-      <section ref={targetRef} className="relative min-h-screen flex flex-col overflow-hidden pt-32 pb-12">
-        {/* Background Image with Overlay */}
-        <motion.div style={{ y, opacity }} className="absolute inset-0 z-0">
-          <img
-            src="https://picsum.photos/seed/cinema/1920/1080"
-            alt="Hero Background"
-            className="w-full h-full object-cover opacity-20 dark:opacity-30"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-zinc-950 via-white/40 dark:via-zinc-950/40 to-transparent" />
+      <section
+        ref={targetRef}
+        className="relative min-h-[100dvh] flex flex-col justify-center overflow-hidden pt-32 pb-12 bg-zinc-50 dark:bg-zinc-950"
+      >
+        {/* Background Subtle Pattern */}
+        <motion.div
+          style={{ y, opacity }}
+          className="absolute inset-0 z-0 opacity-40 dark:opacity-20 pointer-events-none"
+        >
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 dark:from-zinc-950 via-transparent to-transparent" />
         </motion.div>
 
-        <div className="relative z-10 flex-grow flex items-center justify-center max-w-5xl mx-auto px-6 text-center">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Left: Text Content */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
-            className="flex flex-col items-center gap-4 md:gap-6"
+            className="flex flex-col items-start gap-4 md:gap-6 text-left"
           >
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="bg-accent/10 border border-accent/20 px-4 py-1 rounded-full text-accent text-xs font-bold uppercase tracking-widest mb-2 md:mb-4 flex items-center gap-2"
-            >
-              Cinematography
-            </motion.div>
-            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-none mb-2 md:mb-4 uppercase text-zinc-900 dark:text-white">
-              Camera, Rolling, <br />
-              and <span className="text-accent">Action!</span>
+            <h1 className="font-black tracking-tighter uppercase text-zinc-900 dark:text-white flex flex-col gap-1.5 w-full">
+              <span className="text-[5.5vw] xs:text-[6.5vw] sm:text-2xl md:text-3xl font-bold tracking-[0.15em] sm:tracking-widest text-zinc-500 dark:text-zinc-400 block whitespace-nowrap">
+                Camera, Rolling, and
+              </span>
+              <motion.span
+                className="text-[19vw] xs:text-[21vw] sm:text-7xl md:text-7xl lg:text-8xl text-accent block leading-none font-black"
+                initial={{ filter: "blur(12px)", scale: 1.1, opacity: 0 }}
+                animate={{
+                  filter: ["blur(12px)", "blur(0px)", "blur(4px)", "blur(0px)"],
+                  scale: [1.1, 1, 1.02, 1],
+                  opacity: [0, 1, 1, 1],
+                }}
+                transition={{
+                  duration: 1.5,
+                  ease: "easeInOut",
+                  times: [0, 0.4, 0.7, 1],
+                  delay: 0.2,
+                }}
+              >
+                Action!
+              </motion.span>
             </h1>
-            <p className="text-zinc-600 dark:text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto mb-4 md:mb-8 leading-relaxed">
-              Selamat datang di website resmi Cinegraph Nepal SMAN 1 Cileungsi. Tempat kami berbagi cerita melalui lensa dan kreativitas visual.
+
+            <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base md:text-lg max-w-md leading-relaxed">
+              Website resmi Cinegraph Nepal SMAN 1 Cileungsi. Tempat kami berbagi cerita melalui visual.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 w-full sm:w-auto mt-2">
               <Link
                 to="/gallery"
-                className="bg-accent hover:bg-accent/90 text-white px-8 py-4 rounded-xl font-bold flex items-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl shadow-accent/20"
+                className="bg-accent hover:bg-accent/90 text-white px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl shadow-accent/20 text-sm md:text-base"
               >
-                <ImageIcon className="w-5 h-5" />
-                Dokumentasi Acara
+                <ImageIcon className="w-4 h-4 md:w-5 md:h-5" />
+                Dokumentasi
               </Link>
               <Link
                 to="/projects"
-                className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-8 py-4 rounded-xl font-bold flex items-center gap-3 transition-all hover:scale-105 active:scale-95 border border-zinc-200 dark:border-zinc-800 shadow-lg"
+                className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 border border-zinc-200 dark:border-zinc-800 shadow-lg text-sm md:text-base"
               >
-                <Play className="w-5 h-5 fill-current" />
+                <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
                 Aftermovie
               </Link>
             </div>
           </motion.div>
-        </div>
 
-        {/* Scroll Indicator */}
-        <motion.div
-          animate={{ y: [0, 10, 0] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 text-zinc-400 dark:text-zinc-600"
-        >
-          <div className="w-6 h-10 border-2 border-zinc-200 dark:border-zinc-800 rounded-full flex justify-center pt-2">
-            <div className="w-1 h-2 bg-accent rounded-full" />
-          </div>
-        </motion.div>
-      </section>
-
-      {/* Latest Event Highlight */}
-      {latestEvent && (
-        <section className="py-20 px-6 max-w-7xl mx-auto">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.8 }}
-            className="flex flex-col md:flex-row items-center gap-12 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-[3rem] p-8 md:p-12 overflow-hidden relative group"
+          {/* Right: Auto-Sliding Event Cards */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="relative w-full aspect-[4/3] lg:aspect-[4/4] flex items-center justify-center group"
           >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-accent/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
-            
-            <div className="w-full md:w-1/2 aspect-video rounded-2xl overflow-hidden relative shadow-2xl">
-              <img 
-                src={latestEvent.coverImage} 
-                alt={latestEvent.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                referrerPolicy="no-referrer"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-4 left-4 bg-accent text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">
-                Terbaru
-              </div>
-            </div>
+            {heroEvents.length > 0 ? (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentSlide}
+                  initial={{ opacity: 0, x: 50, rotateY: -10 }}
+                  animate={{ opacity: 1, x: 0, rotateY: 0 }}
+                  exit={{ opacity: 0, x: -50, rotateY: 10 }}
+                  transition={{ duration: 0.6 }}
+                  className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-100 dark:bg-zinc-900"
+                >
+                  <img
+                    src={
+                      heroEvents[currentSlide].coverImage ||
+                      "https://picsum.photos/seed/cinema/800/800"
+                    }
+                    alt={heroEvents[currentSlide].title}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-zinc-950/30 to-transparent pointer-events-none" />
 
-            <div className="w-full md:w-1/2 space-y-6">
-              <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-500 text-sm font-bold">
-                <Calendar className="w-4 h-4 text-accent" />
-                {new Date(latestEvent.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 text-left flex flex-col justify-end z-20">
+                    <div>
+                      <span className="bg-accent text-white px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest mb-3 inline-block shadow-lg">
+                        Terbaru
+                      </span>
+                      <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-white drop-shadow-lg leading-tight mb-2 line-clamp-2">
+                        {heroEvents[currentSlide].title}
+                      </h3>
+                      <p className="text-xs md:text-sm text-zinc-300 drop-shadow-md font-medium mb-4">
+                        {new Date(
+                          heroEvents[currentSlide].date,
+                        ).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <Link
+                      to="/gallery"
+                      className="inline-flex items-center gap-2 text-white bg-accent hover:bg-accent/90 px-4 py-2 rounded-lg text-sm font-bold transition-all w-fit shadow-lg"
+                    >
+                      Lihat Dokumentasi{" "}
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            ) : (
+              <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-100 dark:bg-zinc-900 flex flex-col items-center justify-center p-8 text-center">
+                <ImageIcon className="w-12 h-12 text-zinc-400 dark:text-zinc-600 mb-4" />
+                <p className="text-zinc-500 dark:text-zinc-400 font-medium">
+                  Belum ada dokumentasi acara.
+                </p>
               </div>
-              <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-tight text-zinc-900 dark:text-white">
-                {latestEvent.title}
-              </h2>
-              <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed line-clamp-3">
-                {latestEvent.description || "Lihat dokumentasi lengkap dari kegiatan terbaru kami di SMAN 1 Cileungsi."}
-              </p>
-              <Link
-                to="/gallery"
-                className="inline-flex items-center gap-3 text-accent font-black text-lg group/btn"
-              >
-                Lihat Dokumentasi <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
-              </Link>
-            </div>
+            )}
+
+            {/* Dots Indicator */}
+            {heroEvents.length > 1 && (
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                {heroEvents.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentSlide(i)}
+                    className={cn(
+                      "w-2 h-2 rounded-full transition-all",
+                      currentSlide === i
+                        ? "bg-accent w-6"
+                        : "bg-zinc-300 dark:bg-zinc-700 hover:bg-zinc-400 dark:hover:bg-zinc-600",
+                    )}
+                    aria-label={`Go to slide ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </motion.div>
-        </section>
-      )}
+        </div>
+      </section>
 
       {/* Features Section */}
       <section className="py-32 px-6 max-w-7xl mx-auto">
@@ -229,13 +342,15 @@ export default function Home() {
               transition={{ duration: 0.5, delay: index * 0.1 }}
               className={cn(
                 "p-10 rounded-3xl border border-zinc-100 dark:border-zinc-900 hover:border-accent/30 transition-all group shadow-sm hover:shadow-xl",
-                feature.bg
+                feature.bg,
               )}
             >
               <div className="mb-8 p-4 bg-white dark:bg-zinc-950 rounded-2xl w-fit group-hover:scale-110 transition-transform shadow-md">
                 {feature.icon}
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-white">{feature.title}</h3>
+              <h3 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-white">
+                {feature.title}
+              </h3>
               <p className="text-zinc-500 dark:text-zinc-500 mb-8 leading-relaxed">
                 {feature.description}
               </p>
@@ -259,9 +374,11 @@ export default function Home() {
             viewport={{ once: true }}
           >
             <div className="text-5xl font-black text-zinc-900 dark:text-white mb-2">
-              <Counter value={40} suffix="+" />
+              <Counter value={30} suffix="+" />
             </div>
-            <div className="text-zinc-500 text-sm uppercase tracking-widest">Anggota Aktif</div>
+            <div className="text-zinc-500 text-sm uppercase tracking-widest">
+              Anggota Aktif
+            </div>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -272,7 +389,9 @@ export default function Home() {
             <div className="text-5xl font-black text-zinc-900 dark:text-white mb-2">
               <Counter value={25} suffix="+" />
             </div>
-            <div className="text-zinc-500 text-sm uppercase tracking-widest">Project Video</div>
+            <div className="text-zinc-500 text-sm uppercase tracking-widest">
+              Aftermovie
+            </div>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -283,7 +402,9 @@ export default function Home() {
             <div className="text-5xl font-black text-zinc-900 dark:text-white mb-2">
               <Counter value={5} suffix="+" />
             </div>
-            <div className="text-zinc-500 text-sm uppercase tracking-widest">Penghargaan</div>
+            <div className="text-zinc-500 text-sm uppercase tracking-widest">
+              Penghargaan
+            </div>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -292,16 +413,18 @@ export default function Home() {
             transition={{ delay: 0.3 }}
           >
             <div className="text-5xl font-black text-zinc-900 dark:text-white mb-2">
-              <Counter value="12k" suffix="+" />
+              <Counter value="15k" suffix="+" />
             </div>
-            <div className="text-zinc-500 text-sm uppercase tracking-widest">Foto (174GB)</div>
+            <div className="text-zinc-500 text-sm uppercase tracking-widest">
+              Foto (242GB)
+            </div>
           </motion.div>
         </div>
       </section>
 
       {/* CTA Section */}
       <section className="py-32 px-6">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -309,11 +432,14 @@ export default function Home() {
           className="max-w-5xl mx-auto bg-gradient-to-br from-accent to-accent/60 rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden shadow-2xl shadow-accent/20"
         >
           <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-             <Camera className="w-96 h-96 -rotate-12 -translate-x-20 -translate-y-20 text-white" />
+            <Camera className="w-96 h-96 -rotate-12 -translate-x-20 -translate-y-20 text-white" />
           </div>
-          <h2 className="text-4xl md:text-6xl font-black mb-8 relative z-10 text-white">INGIN BERGABUNG DENGAN KAMI?</h2>
+          <h2 className="text-4xl md:text-6xl font-black mb-8 relative z-10 text-white">
+            INGIN BERGABUNG DENGAN KAMI?
+          </h2>
           <p className="text-white/80 text-lg md:text-xl mb-12 max-w-2xl mx-auto relative z-10">
-            Jadilah bagian dari tim kreatif Cinegraph Nepal dan kembangkan bakat cinematographymu bersama kami.
+            Jadilah bagian dari tim kreatif Cinegraph Nepal dan kembangkan bakat
+            cinematographymu bersama kami.
           </p>
           <motion.a
             whileHover={{ scale: 1.05 }}
@@ -327,11 +453,10 @@ export default function Home() {
           </motion.a>
         </motion.div>
       </section>
-
     </motion.div>
   );
 }
 
 function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
+  return inputs.filter(Boolean).join(" ");
 }

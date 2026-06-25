@@ -345,7 +345,7 @@ export default function Leaderboard() {
             transition={{ duration: 0.5 }}
             className="bg-accent/10 border border-accent/20 px-4 py-1 rounded-full text-accent text-xs font-bold uppercase tracking-widest inline-block mb-4"
           >
-            Galeri & Peringkat
+            Dokumentasi & Peringkat
           </motion.div>
           <motion.h1 
             initial={{ y: 20, opacity: 0 }}

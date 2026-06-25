@@ -615,7 +615,7 @@ export default function Dashboard() {
             <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 md:p-10 rounded-3xl h-full">
               <div className="flex items-center gap-3 mb-10">
                 <ImageIcon className="w-5 h-5 text-accent" />
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Galeri Foto Unggulan</h3>
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Dokumentasi Foto Unggulan</h3>
               </div>
               
               <div 

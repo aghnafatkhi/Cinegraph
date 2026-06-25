@@ -18,6 +18,13 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+function getYoutubeId(url: string): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
 interface Event {
   id: string;
   title: string;
@@ -130,7 +137,7 @@ export default function Admin() {
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'events');
       if (error.message.includes('insufficient permissions')) {
-        setMessage({ type: 'error', text: 'Izin ditolak saat mengambil data acara.' });
+        setMessage({ type: 'error', text: 'Izin ditolak saat mengambil data dokumentasi.' });
       }
     });
 
@@ -249,19 +256,26 @@ export default function Admin() {
     });
 
     // Ensure image URL is from preview if drag-and-dropped
+    let finalPreviewUrl = previewUrl;
     if (activeTab === 'events') {
-      data.coverImage = previewUrl;
+      data.coverImage = finalPreviewUrl;
       // Ensure optional fields are handled correctly for rules
       if (!data.googleDriveLink) data.googleDriveLink = "";
       if (!data.description) data.description = "";
     }
     if (activeTab === 'projects') {
-      data.thumbnailUrl = previewUrl;
+      if (!finalPreviewUrl && data.videoUrl) {
+        const ytId = getYoutubeId(data.videoUrl);
+        if (ytId) {
+          finalPreviewUrl = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+        }
+      }
+      data.thumbnailUrl = finalPreviewUrl;
       if (!data.description) data.description = "";
       if (!data.category) data.category = "";
     }
     if (activeTab === 'members') {
-      data.photoUrl = previewUrl;
+      data.photoUrl = finalPreviewUrl;
       data.featuredPhotos = featuredPhotosPreview;
       data.portfolio = portfolioItems;
       data.skills = memberSkills;
@@ -275,7 +289,7 @@ export default function Admin() {
       if (!data.favoriteGear) data.favoriteGear = "";
     }
 
-    if (!previewUrl) {
+    if (!finalPreviewUrl) {
       setMessage({ type: 'error', text: 'Gambar/Foto wajib diisi!' });
       setSaving(false);
       return;
@@ -321,6 +335,30 @@ export default function Admin() {
     } finally {
       setLoading(false);
       setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  const handleYoutubeUrlChange = async (url: string) => {
+    if (!url) return;
+    const ytId = getYoutubeId(url);
+    if (ytId) {
+      const thumbUrl = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+      setPreviewUrl(thumbUrl);
+      
+      try {
+        const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.title) {
+            const titleInput = document.querySelector('input[name="title"]') as HTMLInputElement;
+            if (titleInput && !titleInput.value) {
+              titleInput.value = data.title;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch YouTube oEmbed title:", err);
+      }
     }
   };
 
@@ -554,7 +592,7 @@ export default function Admin() {
                 className="flex-1 md:flex-none bg-accent hover:bg-accent/90 text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-accent/20 text-xs md:text-sm"
               >
                 <Plus className="w-4 h-4 md:w-5 md:h-5" />
-                Tambah {activeTab === 'events' ? 'Acara' : activeTab === 'projects' ? 'Project' : 'Anggota'}
+                Tambah {activeTab === 'events' ? 'Dokumentasi' : activeTab === 'projects' ? 'Aftermovie' : 'Anggota'}
               </button>
             )}
             <button
@@ -570,11 +608,11 @@ export default function Admin() {
         {/* Stats Section */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
           <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl">
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Acara</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Dokumentasi</p>
             <p className="text-3xl font-black text-zinc-900 dark:text-white">{events.length}</p>
           </div>
           <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl">
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Project</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Aftermovie</p>
             <p className="text-3xl font-black text-zinc-900 dark:text-white">{projects.length}</p>
           </div>
           <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl">
@@ -622,7 +660,7 @@ export default function Admin() {
               activeTab === 'events' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
             )}
           >
-            <Calendar className="w-4 h-4 shrink-0" /> Galeri Acara
+            <Calendar className="w-4 h-4 shrink-0" /> Dokumentasi
           </button>
           <button
             onClick={() => { setActiveTab('projects'); setSearchQuery(''); }}
@@ -631,7 +669,7 @@ export default function Admin() {
               activeTab === 'projects' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
             )}
           >
-            <Film className="w-4 h-4 shrink-0" /> Project Video
+            <Film className="w-4 h-4 shrink-0" /> Aftermovie
           </button>
           <button
             onClick={() => { setActiveTab('members'); setSearchQuery(''); }}
@@ -678,7 +716,7 @@ export default function Admin() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={`Cari di ${activeTab === 'events' ? 'acara' : activeTab === 'projects' ? 'project' : activeTab === 'members' ? 'anggota' : activeTab === 'attendance' ? 'kehadiran' : 'admin'}...`}
+              placeholder={`Cari di ${activeTab === 'events' ? 'dokumentasi' : activeTab === 'projects' ? 'project' : activeTab === 'members' ? 'anggota' : activeTab === 'attendance' ? 'kehadiran' : 'admin'}...`}
               className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 px-6 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all shadow-sm"
             />
           </div>
@@ -1021,7 +1059,7 @@ export default function Admin() {
             className="relative w-full max-w-xl mx-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] shadow-2xl z-10 flex flex-col max-h-[90vh] overflow-hidden"
           >
               <div className="flex items-center justify-between p-6 border-b border-zinc-100 dark:border-zinc-800">
-                <h2 className="text-xl font-black text-zinc-900 dark:text-white">{editingItem ? 'Edit' : 'Tambah'} {activeTab === 'events' ? 'Acara' : activeTab === 'projects' ? 'Project' : 'Anggota'}</h2>
+                <h2 className="text-xl font-black text-zinc-900 dark:text-white">{editingItem ? 'Edit' : 'Tambah'} {activeTab === 'events' ? 'Dokumentasi' : activeTab === 'projects' ? 'Project' : 'Anggota'}</h2>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all text-zinc-900 dark:text-white"><X className="w-5 h-5" /></button>
               </div>
 
@@ -1030,13 +1068,13 @@ export default function Admin() {
                 {activeTab === 'events' && (
                   <>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Judul Acara</label>
+                      <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Judul Dokumentasi</label>
                       <input name="title" defaultValue={editingItem?.title} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                          <Calendar className="w-3 h-3" /> Tanggal Acara
+                          <Calendar className="w-3 h-3" /> Tanggal Dokumentasi
                         </label>
                         <div className="relative">
                           <input 
@@ -1109,7 +1147,7 @@ export default function Admin() {
                 {activeTab === 'projects' && (
                   <>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Judul Project</label>
+                      <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Judul Aftermovie</label>
                       <input name="title" defaultValue={editingItem?.title} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1118,7 +1156,7 @@ export default function Admin() {
                         <input name="category" defaultValue={editingItem?.category} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Thumbnail Project</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Thumbnail Aftermovie</label>
                         <div 
                           onDragEnter={handleDrag}
                           onDragLeave={handleDrag}
@@ -1166,7 +1204,15 @@ export default function Admin() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">URL Video (YouTube)</label>
-                      <input name="videoUrl" defaultValue={editingItem?.videoUrl} required className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" />
+                      <input 
+                        name="videoUrl" 
+                        defaultValue={editingItem?.videoUrl} 
+                        onChange={(e) => handleYoutubeUrlChange(e.target.value)}
+                        onBlur={(e) => handleYoutubeUrlChange(e.target.value)}
+                        required 
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Deskripsi</label>
@@ -1227,7 +1273,7 @@ export default function Admin() {
                     </div>
                     <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Galeri Foto Unggulan</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Dokumentasi Foto Unggulan</label>
                         <button 
                           type="button" 
                           onClick={() => document.getElementById('featured-photos-input')?.click()}
@@ -1441,10 +1487,10 @@ export default function Admin() {
                 <Trash2 className="w-8 h-8" />
               </div>
               <h2 className="text-2xl font-black mb-2 text-zinc-900 dark:text-white tracking-tight">
-                Hapus {deleteConfirm?.collection === 'members' ? 'Anggota' : deleteConfirm?.collection === 'events' ? 'Acara' : deleteConfirm?.collection === 'attendance' ? 'Catatan Kehadiran' : deleteConfirm?.collection === 'users' ? 'Admin' : 'Project'}?
+                Hapus {deleteConfirm?.collection === 'members' ? 'Anggota' : deleteConfirm?.collection === 'events' ? 'Dokumentasi' : deleteConfirm?.collection === 'attendance' ? 'Catatan Kehadiran' : deleteConfirm?.collection === 'users' ? 'Admin' : 'Aftermovie'}?
               </h2>
               <p className="text-zinc-500 dark:text-zinc-400 mb-8">
-                Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus {deleteConfirm?.collection === 'members' ? 'anggota' : deleteConfirm?.collection === 'events' ? 'acara' : deleteConfirm?.collection === 'attendance' ? 'catatan kehadiran' : deleteConfirm?.collection === 'users' ? 'admin' : 'project'} ini dari database?
+                Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus {deleteConfirm?.collection === 'members' ? 'anggota' : deleteConfirm?.collection === 'events' ? 'dokumentasi' : deleteConfirm?.collection === 'attendance' ? 'catatan kehadiran' : deleteConfirm?.collection === 'users' ? 'admin' : 'aftermovie'} ini dari database?
               </p>
               
               <div className="flex gap-4">

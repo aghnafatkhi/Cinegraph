@@ -3,6 +3,7 @@
 @theme {
   --color-accent: #FA983A;
   --color-accent-foreground: #ffffff;
+  --accent-rgb: 250, 152, 58;
 }
 
 @layer base {
@@ -38,3 +39,46 @@
 }
 
 @variant dark (&:where(.dark, .dark *));
+
+/* Html5QrcodeScanner UI Overrides */
+#reader {
+  border: none !important;
+}
+#reader > div {
+  border: none !important;
+}
+#reader video {
+  border-radius: 1.5rem !important;
+  object-fit: cover !important;
+}
+#reader__dashboard {
+  padding: 1.5rem !important;
+  background: transparent !important;
+}
+#reader__dashboard_section_csr button, 
+#reader__dashboard_section_fsr button {
+  background-color: var(--color-accent) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 0.75rem !important;
+  padding: 0.5rem 1rem !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-size: 0.75rem !important;
+  transition: all 0.2s !important;
+}
+#reader__dashboard_section_csr button:hover, 
+#reader__dashboard_section_fsr button:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(250, 152, 58, 0.3) !important;
+}
+#reader__status_span {
+  font-weight: 600 !important;
+  color: #71717a !important;
+}
+.dark #reader__status_span {
+  color: #a1a1aa !important;
+}

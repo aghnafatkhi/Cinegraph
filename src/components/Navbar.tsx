@@ -32,9 +32,10 @@ export default function Navbar() {
 
   const navLinks = [
     { name: 'Beranda', path: '/', icon: <Home className="w-4 h-4" /> },
-    { name: 'Galeri', path: '/gallery', icon: <ImageIcon className="w-4 h-4" /> },
+    { name: 'Dokumentasi', path: '/gallery', icon: <ImageIcon className="w-4 h-4" /> },
+    { name: 'Aftermovie', path: '/projects', icon: <Film className="w-4 h-4" /> },
+    { isDivider: true, path: 'divider-1' },
     { name: 'Anggota', path: '/members', icon: <Users className="w-4 h-4" /> },
-    { name: 'Video', path: '/projects', icon: <Film className="w-4 h-4" /> },
     { name: 'Feed Foto', path: '/leaderboard', icon: <LayoutGrid className="w-4 h-4" /> },
     { name: 'Presensi', path: '/attendance', icon: <Camera className="w-4 h-4" /> },
   ];
@@ -47,8 +48,8 @@ export default function Navbar() {
     <nav
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b',
-        scrolled
-          ? 'bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-zinc-200 dark:border-zinc-800 py-3'
+        (scrolled || isOpen)
+          ? 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 py-3 shadow-lg'
           : 'bg-transparent border-transparent py-4'
       )}
     >
@@ -71,21 +72,25 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <div className="hidden md:flex items-center gap-4 lg:gap-8">
+        <div className="hidden md:flex items-center gap-4 lg:gap-6">
           {navLinks.map((link) => (
-            <Link
-              key={link.path}
-              to={link.path}
-              className={cn(
-                'flex items-center gap-2 text-xs lg:text-sm font-medium transition-colors hover:text-accent',
-                location.pathname === link.path 
-                  ? 'text-accent' 
-                  : 'text-zinc-600 dark:text-zinc-400'
-              )}
-            >
-              {link.icon}
-              {link.name}
-            </Link>
+            'isDivider' in link && link.isDivider ? (
+              <div key={link.path} className="h-4 w-[1.5px] bg-zinc-200 dark:bg-zinc-800 mx-1 lg:mx-2" />
+            ) : (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={cn(
+                  'flex items-center gap-2 text-xs lg:text-sm font-medium transition-colors hover:text-accent',
+                  location.pathname === link.path 
+                    ? 'text-accent' 
+                    : 'text-zinc-600 dark:text-zinc-400'
+                )}
+              >
+                {link.icon}
+                {link.name}
+              </Link>
+            )
           ))}
           
           <div className="flex items-center gap-3 pl-4 border-l border-zinc-200 dark:border-zinc-800">
@@ -117,7 +122,7 @@ export default function Navbar() {
           </button>
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-white transition-colors"
+            className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-accent dark:hover:text-white transition-colors"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -132,30 +137,34 @@ export default function Navbar() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="md:hidden bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 overflow-hidden"
+            className="md:hidden bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 overflow-hidden"
           >
             <div className="px-6 py-8 flex flex-col gap-6">
               {navLinks.map((link, index) => (
-                <motion.div
-                  key={link.path}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Link
-                    to={link.path}
-                    onClick={() => setIsOpen(false)}
-                    className={cn(
-                      'flex items-center gap-4 text-lg font-medium transition-colors',
-                      location.pathname === link.path 
-                        ? 'text-accent' 
-                        : 'text-zinc-600 dark:text-zinc-400'
-                    )}
+                'isDivider' in link && link.isDivider ? (
+                  <div key={link.path} className="h-[1px] w-full bg-zinc-100 dark:bg-zinc-800/60 my-1" />
+                ) : (
+                  <motion.div
+                    key={link.path}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
                   >
-                    {link.icon}
-                    {link.name}
-                  </Link>
-                </motion.div>
+                    <Link
+                      to={link.path}
+                      onClick={() => setIsOpen(false)}
+                      className={cn(
+                        'flex items-center gap-4 text-lg font-medium transition-colors',
+                        location.pathname === link.path 
+                          ? 'text-accent' 
+                          : 'text-zinc-600 dark:text-zinc-400'
+                      )}
+                    >
+                      {link.icon}
+                      {link.name}
+                    </Link>
+                  </motion.div>
+                )
               ))}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}

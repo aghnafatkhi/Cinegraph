@@ -28,7 +28,7 @@ export default function Gallery() {
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedYear, setSelectedYear] = useState<string>('Semua Tahun');
-  const [selectedCategory, setSelectedCategory] = useState<string>('Semua Kategori');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'events'), orderBy('date', sortBy === 'newest' ? 'desc' : 'asc'));
@@ -48,13 +48,11 @@ export default function Gallery() {
   }, [sortBy]);
 
   const years = ['Semua Tahun', ...new Set(events.map(event => new Date(event.date).getFullYear().toString()))].sort((a, b) => b.localeCompare(a));
-  const categories = ['Semua Kategori', ...new Set(events.map(event => event.category || 'Kegiatan'))].sort();
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesYear = selectedYear === 'Semua Tahun' || new Date(event.date).getFullYear().toString() === selectedYear;
-    const matchesCategory = selectedCategory === 'Semua Kategori' || (event.category || 'Kegiatan') === selectedCategory;
-    return matchesSearch && matchesYear && matchesCategory;
+    return matchesSearch && matchesYear;
   });
 
   return (
@@ -65,76 +63,96 @@ export default function Gallery() {
       className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
     >
       <Helmet>
-        <title>Galeri Dokumentasi - Cinegraph Nepal</title>
+        <title>Dokumentasi - Cinegraph Nepal</title>
         <meta name="description" content="Lihat kumpulan dokumentasi acara dan kegiatan SMAN 1 Cileungsi yang diabadikan oleh tim Cinegraph Nepal." />
-        <meta property="og:title" content="Galeri Dokumentasi - Cinegraph Nepal" />
+        <meta property="og:title" content="Dokumentasi - Cinegraph Nepal" />
         <meta property="og:description" content="Kumpulan momen berharga di SMAN 1 Cileungsi dalam lensa Cinegraph Nepal." />
       </Helmet>
       <div className="max-w-7xl mx-auto">
-        <header className="mb-16 text-center">
+        <header className="mb-12 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-4"
+            className="flex flex-col items-center gap-3"
           >
-            <div className="bg-accent/10 border border-accent/20 px-4 py-1 rounded-full text-accent text-xs font-bold uppercase tracking-widest">
-              Dokumentasi Visual
-            </div>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white">GALERI <span className="text-accent">FOTO</span></h1>
-            <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-lg leading-relaxed">
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 dark:text-white">DOKUMENTASI <span className="text-accent">FOTO</span></h1>
+            <p className="text-zinc-500 dark:text-zinc-400 max-w-md mx-auto text-xs md:text-sm leading-relaxed opacity-90">
               Kumpulan momen berharga dari berbagai acara di SMAN 1 Cileungsi yang berhasil kami abadikan.
             </p>
           </motion.div>
         </header>
 
         {/* Search & Filter Bar */}
-        <div className="max-w-6xl mx-auto mb-16 space-y-6">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative flex-grow group w-full">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 group-focus-within:text-accent transition-colors" />
-              <input
-                type="text"
-                placeholder="Cari nama acara..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 pl-12 pr-6 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-              />
-            </div>
-            
-            <div className="flex gap-4 w-full md:w-auto">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
-                className="flex-grow md:flex-grow-0 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 px-6 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold"
+        <div className="max-w-6xl mx-auto mb-12 space-y-5">
+          <div className="flex justify-center items-center gap-3">
+            {/* Elegant compact Search toggler */}
+            <div className="flex items-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1 md:p-1.5 transition-all duration-300">
+              <AnimatePresence initial={false}>
+                {isSearchOpen && (
+                  <motion.div
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{ width: "160px", opacity: 1 }}
+                    exit={{ width: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Cari acara..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full bg-transparent border-none py-1 px-3 text-xs text-zinc-900 dark:text-white focus:outline-none placeholder-zinc-400 dark:placeholder-zinc-500 font-medium"
+                      autoFocus
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <button
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className={cn(
+                  "p-2.5 rounded-xl transition-all flex items-center justify-center",
+                  isSearchOpen ? "bg-accent/10 text-accent" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                )}
+                aria-label="Cari nama acara"
               >
-                <option value="newest">Terbaru</option>
-                <option value="oldest">Terlama</option>
-              </select>
+                <Search className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+            </div>
 
-              <div className="flex bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={cn(
-                    "p-3 rounded-xl transition-all",
-                    viewMode === 'grid' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                  )}
-                >
-                  <Grid className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    "p-3 rounded-xl transition-all",
-                    viewMode === 'list' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                  )}
-                >
-                  <List className="w-5 h-5" />
-                </button>
-              </div>
+            {/* Sort selection */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
+              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-3 px-4 text-xs md:text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold"
+            >
+              <option value="newest">Terbaru</option>
+              <option value="oldest">Terlama</option>
+            </select>
+
+            {/* View switcher */}
+            <div className="flex bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                  "p-2.5 rounded-xl transition-all",
+                  viewMode === 'grid' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                )}
+              >
+                <Grid className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "p-2.5 rounded-xl transition-all",
+                  viewMode === 'list' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                )}
+              >
+                <List className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
             </div>
           </div>
 
-          {/* Year & Category Filters */}
+          {/* Year Filter */}
           <div className="flex flex-wrap gap-3 justify-center">
             <div className="flex gap-2 p-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-x-auto custom-scrollbar-hide max-w-full">
               {years.map((year) => (
@@ -152,30 +170,13 @@ export default function Gallery() {
                 </button>
               ))}
             </div>
-
-            <div className="flex gap-2 p-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-x-auto custom-scrollbar-hide max-w-full">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={cn(
-                    "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-                    selectedCategory === cat 
-                      ? "bg-accent text-white shadow-lg shadow-accent/20" 
-                      : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                  )}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-            <p className="text-zinc-500 font-medium">Memuat galeri...</p>
+            <p className="text-zinc-500 font-medium">Memuat dokumentasi...</p>
           </div>
         ) : (
           <div 
@@ -252,11 +253,11 @@ export default function Gallery() {
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 bg-accent hover:bg-white hover:text-accent text-white px-6 py-3 rounded-xl text-sm font-black transition-all active:scale-95 shadow-lg shadow-accent/20"
                               >
-                                Lihat Galeri <ExternalLink className="w-4 h-4" />
+                                Lihat Dokumentasi <ExternalLink className="w-4 h-4" />
                               </a>
                             ) : (
                               <div className="inline-block text-zinc-500 text-xs font-bold uppercase tracking-widest bg-white/5 backdrop-blur-md py-2 px-4 rounded-lg border border-white/10">
-                                Galeri Belum Tersedia
+                                Dokumentasi Belum Tersedia
                               </div>
                             )}
                           </div>
@@ -287,7 +288,7 @@ export default function Gallery() {
                             rel="noopener noreferrer"
                             className="w-fit inline-flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-4 md:px-8 py-2 md:py-3 rounded-xl text-xs md:text-sm font-black transition-all active:scale-95 shadow-lg"
                           >
-                            <span className="hidden md:inline">Lihat Galeri</span>
+                            <span className="hidden md:inline">Lihat Dokumentasi</span>
                             <span className="md:hidden">Lihat</span> <ExternalLink className="w-3 h-3 md:w-4 md:h-4" />
                           </a>
                         ) : (

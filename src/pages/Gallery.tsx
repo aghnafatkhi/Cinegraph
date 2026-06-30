@@ -28,7 +28,6 @@ export default function Gallery() {
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedYear, setSelectedYear] = useState<string>('Semua Tahun');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'events'), orderBy('date', sortBy === 'newest' ? 'desc' : 'asc'));
@@ -83,60 +82,29 @@ export default function Gallery() {
         </header>
 
         {/* Search & Filter Bar */}
-        <div className="max-w-6xl mx-auto mb-12 space-y-5">
-          <div className="flex justify-center items-center gap-3">
-            {/* Elegant compact Search toggler */}
-            <div className="flex items-center bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1 md:p-1.5 transition-all duration-300">
-              <AnimatePresence initial={false}>
-                {isSearchOpen && (
-                  <motion.div
-                    initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: "160px", opacity: 1 }}
-                    exit={{ width: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Cari acara..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full bg-transparent border-none py-1 px-3 text-xs text-zinc-900 dark:text-white focus:outline-none placeholder-zinc-400 dark:placeholder-zinc-500 font-medium"
-                      autoFocus
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <button
-                onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className={cn(
-                  "p-2.5 rounded-xl transition-all flex items-center justify-center",
-                  isSearchOpen ? "bg-accent/10 text-accent" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                )}
-                aria-label="Cari nama acara"
-              >
-                <Search className="w-4 h-4 md:w-5 md:h-5" />
-              </button>
+        <div className="max-w-2xl mx-auto mb-12 space-y-4">
+          {/* Row 1: Search Bar & View Switcher */}
+          <div className="flex items-center gap-3 w-full">
+            <div className="relative flex-grow group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 group-focus-within:text-accent w-4 h-4 transition-colors" />
+              <input
+                type="text"
+                placeholder="Cari acara..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-3 pl-11 pr-4 text-xs sm:text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+              />
             </div>
 
-            {/* Sort selection */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
-              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-3 px-4 text-xs md:text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold"
-            >
-              <option value="newest">Terbaru</option>
-              <option value="oldest">Terlama</option>
-            </select>
-
             {/* View switcher */}
-            <div className="flex bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1">
+            <div className="flex bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1 shrink-0">
               <button
                 onClick={() => setViewMode('grid')}
                 className={cn(
                   "p-2.5 rounded-xl transition-all",
                   viewMode === 'grid' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
                 )}
+                aria-label="Grid View"
               >
                 <Grid className="w-4 h-4 md:w-5 md:h-5" />
               </button>
@@ -146,27 +114,46 @@ export default function Gallery() {
                   "p-2.5 rounded-xl transition-all",
                   viewMode === 'list' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
                 )}
+                aria-label="List View"
               >
                 <List className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
           </div>
 
-          {/* Year Filter */}
-          <div className="flex flex-wrap gap-3 justify-center">
-            <div className="flex gap-2 p-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-x-auto custom-scrollbar-hide max-w-full">
+          {/* Row 2: Sorting and Year Filter */}
+          <div className="flex items-center justify-between sm:justify-center gap-2 sm:gap-3 w-full">
+            {/* Sort selection */}
+            <div className="shrink-0">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
+                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-2.5 px-2.5 sm:px-4 text-xs sm:text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold h-[44px]"
+              >
+                <option value="newest">Terbaru</option>
+                <option value="oldest">Terlama</option>
+              </select>
+            </div>
+
+            {/* Year Filter */}
+            <div className="flex-grow sm:flex-grow-0 flex gap-1 sm:gap-1.5 p-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-x-auto sm:overflow-x-visible custom-scrollbar-hide h-[44px] items-center min-w-0 sm:min-w-max shrink-0 sm:shrink">
               {years.map((year) => (
                 <button
                   key={year}
                   onClick={() => setSelectedYear(year)}
                   className={cn(
-                    "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+                    "px-2.5 py-1.5 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0",
                     selectedYear === year 
-                      ? "bg-accent text-white shadow-lg shadow-accent/20" 
-                      : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                      ? "bg-accent text-white shadow-md shadow-accent/10" 
+                      : "text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
                   )}
                 >
-                  {year}
+                  {year === 'Semua Tahun' ? (
+                    <>
+                      <span className="sm:hidden">Semua</span>
+                      <span className="hidden sm:inline">Semua Tahun</span>
+                    </>
+                  ) : year}
                 </button>
               ))}
             </div>

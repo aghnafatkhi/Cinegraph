@@ -3,7 +3,7 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
-import { Play, Film, X, Info, ExternalLink, Copy, Check, Youtube } from 'lucide-react';
+import { Play, Film, X, Info, ExternalLink, Copy, Check, Youtube, Search } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -132,8 +132,8 @@ export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [activeCategory, setActiveCategory] = useState('Semua');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'alphabetical'>('newest');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [copied, setCopied] = useState(false);
 
   const handleCopyLink = (url: string) => {
@@ -143,7 +143,7 @@ export default function Projects() {
   };
 
   useEffect(() => {
-    const q = query(collection(db, 'projects'), orderBy('title', sortBy === 'alphabetical' ? 'asc' : 'desc'));
+    const q = query(collection(db, 'projects'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const projectData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -162,41 +162,58 @@ export default function Projects() {
         }
       });
 
+      // Filter to keep ONLY valid YouTube links
+      const youtubeOnly = combined.filter(p => getYoutubeId(p.videoUrl) !== null);
+
       // Sort the combined list
-      if (sortBy === 'alphabetical') {
-        combined.sort((a, b) => a.title.localeCompare(b.title));
-      } else if (sortBy === 'oldest') {
-        // Place preset IDs (yt-) sequentially or by default sorting
-        combined.sort((a, b) => {
-          if (a.id.startsWith('yt-') && !b.id.startsWith('yt-')) return 1;
-          if (!a.id.startsWith('yt-') && b.id.startsWith('yt-')) return -1;
-          return b.id.localeCompare(a.id);
+      if (sortBy === 'oldest') {
+        youtubeOnly.sort((a, b) => {
+          const isAYt = a.id.startsWith('yt-');
+          const isBYt = b.id.startsWith('yt-');
+          if (isAYt && !isBYt) return -1; // oldest presets first
+          if (!isAYt && isBYt) return 1;
+          
+          if (isAYt && isBYt) {
+            const indexA = DEFAULT_YOUTUBE_PROJECTS.findIndex(p => p.id === a.id);
+            const indexB = DEFAULT_YOUTUBE_PROJECTS.findIndex(p => p.id === b.id);
+            return indexB - indexA; // reverse order of presets
+          }
+          return a.id.localeCompare(b.id);
         });
       } else {
-        // newest (default) - real firebase projects first, then presets
-        combined.sort((a, b) => {
-          if (a.id.startsWith('yt-') && !b.id.startsWith('yt-')) return 1;
-          if (!a.id.startsWith('yt-') && b.id.startsWith('yt-')) return -1;
+        // newest (default) - real firebase projects first, then presets in newest-to-oldest order
+        youtubeOnly.sort((a, b) => {
+          const isAYt = a.id.startsWith('yt-');
+          const isBYt = b.id.startsWith('yt-');
+          if (isAYt && !isBYt) return 1;
+          if (!isAYt && isBYt) return -1;
+          
+          if (isAYt && isBYt) {
+            const indexA = DEFAULT_YOUTUBE_PROJECTS.findIndex(p => p.id === a.id);
+            const indexB = DEFAULT_YOUTUBE_PROJECTS.findIndex(p => p.id === b.id);
+            return indexA - indexB;
+          }
           return b.id.localeCompare(a.id);
         });
       }
 
-      setProjects(combined);
+      setProjects(youtubeOnly);
       setLoading(false);
     }, (error) => {
       console.error("Error fetching projects:", error);
-      setProjects(DEFAULT_YOUTUBE_PROJECTS);
+      const defaultYt = DEFAULT_YOUTUBE_PROJECTS.filter(p => getYoutubeId(p.videoUrl) !== null);
+      setProjects(defaultYt);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, [sortBy]);
 
-  const categories = ['Semua', ...new Set(projects.map(p => p.category).filter(Boolean) as string[])];
-  
-  const filteredProjects = activeCategory === 'Semua' 
-    ? projects 
-    : projects.filter(p => p.category === activeCategory);
+  const filteredProjects = projects.filter(p => {
+    const queryStr = searchQuery.toLowerCase();
+    return p.title.toLowerCase().includes(queryStr) || 
+           (p.description && p.description.toLowerCase().includes(queryStr));
+  });
 
   return (
     <motion.div 
@@ -212,52 +229,46 @@ export default function Projects() {
         <meta property="og:description" content="Koleksi aftermovie terbaik dari siswa SMAN 1 Cileungsi." />
       </Helmet>
       <div className="max-w-7xl mx-auto">
-        <header className="mb-16 text-center">
+        <header className="mb-12 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center gap-4"
           >
-            <div className="bg-accent/10 border border-accent/20 px-4 py-1 rounded-full text-accent text-xs font-bold uppercase tracking-widest">
-              Aftermovie Kegiatan
-            </div>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">AFTERMOVIE <span className="text-accent">KAMI</span></h1>
-            <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-lg leading-relaxed">
+            <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-none">
+              AFTERMOVIE
+            </h1>
+            <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed px-4">
               Kumpulan aftermovie kolaborasi tim Cinegraph Nepal SMAN 1 Cileungsi.
             </p>
           </motion.div>
         </header>
 
-        {/* Category & Sort Filter */}
-        <div className="flex flex-col md:flex-row justify-center items-center gap-6 mb-16">
-          <div className="flex flex-wrap justify-center gap-3">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={cn(
-                  "px-6 py-2 rounded-full font-bold text-sm transition-all border",
-                  activeCategory === cat 
-                    ? "bg-accent border-accent text-white shadow-lg shadow-accent/20" 
-                    : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-500 hover:border-accent hover:text-accent"
-                )}
-              >
-                {cat}
-              </button>
-            ))}
+        {/* Search & Sort Filter */}
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-3.5 mb-16 max-w-2xl mx-auto w-full px-4">
+          {/* Search Bar */}
+          <div className="relative w-full sm:flex-grow">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Cari aftermovie..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-2.5 pl-11 pr-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:border-accent transition-all h-[44px]"
+            />
           </div>
           
-          <div className="h-8 w-px bg-zinc-200 dark:bg-zinc-800 hidden md:block" />
-
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full py-2 px-6 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold"
-          >
-            <option value="newest">Terbaru</option>
-            <option value="oldest">Terlama</option>
-            <option value="alphabetical">A-Z</option>
-          </select>
+          {/* Sort dropdown */}
+          <div className="shrink-0 w-full sm:w-auto">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
+              className="w-full sm:w-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-2.5 px-4 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold h-[44px]"
+            >
+              <option value="newest">Terbaru</option>
+              <option value="oldest">Terlama</option>
+            </select>
+          </div>
         </div>
 
         {loading ? (
@@ -272,7 +283,8 @@ export default function Projects() {
                 key={project.id}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="group relative bg-zinc-50 dark:bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-100 dark:border-zinc-800 hover:border-accent/50 transition-all shadow-xl hover:shadow-2xl flex flex-col h-full"
+                onClick={() => setSelectedProject(project)}
+                className="group relative bg-zinc-50 dark:bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-100 dark:border-zinc-800 hover:border-accent/50 transition-all shadow-xl hover:shadow-2xl flex flex-col h-full cursor-pointer"
               >
                 <div className="relative aspect-video w-full overflow-hidden shrink-0 bg-zinc-950">
                   <img
@@ -283,37 +295,17 @@ export default function Projects() {
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button 
-                      onClick={() => setSelectedProject(project)}
-                      className="bg-accent p-4 rounded-full scale-90 group-hover:scale-100 transition-transform shadow-2xl"
-                    >
+                    <div className="bg-accent p-4 rounded-full scale-90 group-hover:scale-100 transition-transform shadow-2xl">
                       <Play className="w-6 h-6 fill-current text-white" />
-                    </button>
+                    </div>
                   </div>
                 </div>
                 <div className="p-6 md:p-8 flex flex-col flex-grow justify-between">
                   <div>
                     <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white group-hover:text-accent transition-colors line-clamp-2">{project.title}</h3>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6 line-clamp-3 leading-relaxed">
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm line-clamp-3 leading-relaxed">
                       {project.description || "Aftermovie acara karya tim Cinematography SMAN 1 Cileungsi."}
                     </p>
-                  </div>
-
-                  <div className="flex items-center gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
-                    <button 
-                      onClick={() => setSelectedProject(project)}
-                      className="flex-grow bg-accent hover:bg-accent/90 text-white text-xs font-black uppercase tracking-wider py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-md shadow-accent/10"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" /> Putar
-                    </button>
-                    <a 
-                      href={project.videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-grow bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-zinc-800 dark:text-zinc-200 text-xs font-black uppercase tracking-wider py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] border border-zinc-200/50 dark:border-zinc-700/50"
-                    >
-                      <Youtube className="w-3.5 h-3.5 fill-current text-red-600" /> YouTube
-                    </a>
                   </div>
                 </div>
               </motion.div>

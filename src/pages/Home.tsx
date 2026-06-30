@@ -76,6 +76,7 @@ function Counter({
 
 export default function Home() {
   const [heroEvents, setHeroEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const targetRef = useRef(null);
 
@@ -108,9 +109,15 @@ export default function Home() {
             (doc) => ({ id: doc.id, ...doc.data() }) as Event,
           );
           setHeroEvents(eventsData);
+        } else {
+          setHeroEvents([]);
         }
+        setLoading(false);
       },
-      (error) => console.error("Error fetching latest events:", error),
+      (error) => {
+        console.error("Error fetching latest events:", error);
+        setLoading(false);
+      },
     );
     return () => unsubscribe();
   }, []);
@@ -122,15 +129,7 @@ export default function Home() {
         "Dokumentasi lengkap setiap momen berharga di SMAN 1 Cileungsi.",
       icon: <ImageIcon className="w-8 h-8 text-accent" />,
       link: "/gallery",
-      bg: "bg-zinc-50 dark:bg-zinc-900/50",
-    },
-    {
-      title: "Portofolio Anggota",
-      description:
-        "Kenali tim kreatif kami dan lihat hasil karya terbaik mereka.",
-      icon: <Users className="w-8 h-8 text-accent" />,
-      link: "/members",
-      bg: "bg-zinc-50 dark:bg-zinc-900/50",
+      bg: "bg-white/30 dark:bg-zinc-950/20 backdrop-blur-md border-zinc-200/50 dark:border-white/5",
     },
     {
       title: "Aftermovie Kegiatan",
@@ -138,7 +137,15 @@ export default function Home() {
         "Tonton aftermovie kegiatan, acara sekolah, dan karya film pendek kami.",
       icon: <Play className="w-8 h-8 text-accent" />,
       link: "/projects",
-      bg: "bg-zinc-50 dark:bg-zinc-900/50",
+      bg: "bg-white/30 dark:bg-zinc-950/20 backdrop-blur-md border-zinc-200/50 dark:border-white/5",
+    },
+    {
+      title: "Portofolio Anggota",
+      description:
+        "Kenali tim kreatif kami dan lihat hasil karya terbaik mereka.",
+      icon: <Users className="w-8 h-8 text-accent" />,
+      link: "/members",
+      bg: "bg-white/30 dark:bg-zinc-950/20 backdrop-blur-md border-zinc-200/50 dark:border-white/5",
     },
   ];
 
@@ -179,8 +186,13 @@ export default function Home() {
       {/* Hero Section */}
       <section
         ref={targetRef}
-        className="relative min-h-[100dvh] flex flex-col justify-center overflow-hidden pt-32 pb-12 bg-zinc-50 dark:bg-zinc-950"
+        className="relative min-h-[100dvh] flex flex-col justify-center overflow-hidden pt-32 pb-12 bg-zinc-50 dark:bg-zinc-950 transition-colors duration-300"
       >
+        {/* Glowing Neon Orbs for Glassmorphism Accent */}
+        <div className="absolute top-12 left-[10%] w-[450px] h-[450px] bg-accent/8 dark:bg-accent/15 rounded-full blur-[110px] pointer-events-none" />
+        <div className="absolute bottom-24 right-[5%] w-[400px] h-[400px] bg-[#FA983A]/8 dark:bg-[#FA983A]/12 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute top-1/3 right-[15%] w-[350px] h-[350px] bg-[#E55039]/5 dark:bg-[#E55039]/10 rounded-full blur-[110px] pointer-events-none" />
+
         {/* Background Subtle Pattern */}
         <motion.div
           style={{ y, opacity }}
@@ -198,27 +210,13 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="flex flex-col items-start gap-4 md:gap-6 text-left"
           >
-            <h1 className="font-black tracking-tighter uppercase text-zinc-900 dark:text-white flex flex-col gap-1.5 w-full">
-              <span className="text-[5.5vw] xs:text-[6.5vw] sm:text-2xl md:text-3xl font-bold tracking-[0.15em] sm:tracking-widest text-zinc-500 dark:text-zinc-400 block whitespace-nowrap">
+            <h1 className="font-black tracking-tighter uppercase text-zinc-900 dark:text-white flex flex-col gap-1 md:gap-2 w-full">
+              <span className="text-[5.2vw] xs:text-[6.2vw] sm:text-2xl md:text-3xl font-extrabold tracking-[0.18em] text-zinc-500 dark:text-zinc-400 block whitespace-nowrap">
                 Camera, Rolling, and
               </span>
-              <motion.span
-                className="text-[19vw] xs:text-[21vw] sm:text-7xl md:text-7xl lg:text-8xl text-accent block leading-none font-black"
-                initial={{ filter: "blur(12px)", scale: 1.1, opacity: 0 }}
-                animate={{
-                  filter: ["blur(12px)", "blur(0px)", "blur(4px)", "blur(0px)"],
-                  scale: [1.1, 1, 1.02, 1],
-                  opacity: [0, 1, 1, 1],
-                }}
-                transition={{
-                  duration: 1.5,
-                  ease: "easeInOut",
-                  times: [0, 0.4, 0.7, 1],
-                  delay: 0.2,
-                }}
-              >
+              <span className="text-[19vw] xs:text-[21vw] sm:text-7xl md:text-7xl lg:text-8xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black drop-shadow-[0_2px_15px_rgba(250,152,58,0.15)] dark:drop-shadow-[0_4px_20px_rgba(250,152,58,0.2)]">
                 Action!
-              </motion.span>
+              </span>
             </h1>
 
             <p className="text-zinc-600 dark:text-zinc-400 text-sm sm:text-base md:text-lg max-w-md leading-relaxed">
@@ -250,7 +248,13 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.3 }}
             className="relative w-full aspect-[4/3] lg:aspect-[4/4] flex items-center justify-center group"
           >
-            {heroEvents.length > 0 ? (
+            {loading ? (
+              <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col items-center justify-center p-8 text-center animate-pulse">
+                <ImageIcon className="w-12 h-12 text-zinc-300 dark:text-zinc-700 mb-4 animate-bounce" />
+                <div className="h-4 w-32 bg-zinc-200 dark:bg-zinc-800 rounded mb-2"></div>
+                <div className="h-3 w-24 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
+              </div>
+            ) : heroEvents.length > 0 ? (
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentSlide}
@@ -268,18 +272,19 @@ export default function Home() {
                     alt={heroEvents[currentSlide].title}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
+                    loading="eager"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-zinc-950/30 to-transparent pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/85 via-zinc-950/25 to-transparent pointer-events-none" />
 
-                  <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 text-left flex flex-col justify-end z-20">
+                  <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 md:p-8 text-left flex flex-col justify-end z-20">
                     <div>
-                      <span className="bg-accent text-white px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest mb-3 inline-block shadow-lg">
+                      <span className="bg-accent text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest mb-2 inline-block shadow-md">
                         Terbaru
                       </span>
-                      <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-white drop-shadow-lg leading-tight mb-2 line-clamp-2">
+                      <h3 className="text-2xl sm:text-2xl md:text-3xl lg:text-3xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] leading-tight mb-1.5 line-clamp-2">
                         {heroEvents[currentSlide].title}
                       </h3>
-                      <p className="text-xs md:text-sm text-zinc-300 drop-shadow-md font-medium mb-4">
+                      <p className="text-[10px] sm:text-xs text-zinc-300 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] font-medium mb-3 sm:mb-4">
                         {new Date(
                           heroEvents[currentSlide].date,
                         ).toLocaleDateString("id-ID", {
@@ -291,10 +296,10 @@ export default function Home() {
                     </div>
                     <Link
                       to="/gallery"
-                      className="inline-flex items-center gap-2 text-white bg-accent hover:bg-accent/90 px-4 py-2 rounded-lg text-sm font-bold transition-all w-fit shadow-lg"
+                      className="inline-flex items-center gap-1.5 sm:gap-2 text-white bg-accent hover:bg-accent/90 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all w-fit shadow-lg hover:scale-105 active:scale-95"
                     >
                       Lihat Dokumentasi{" "}
-                      <ArrowRight className="w-4 h-4" />
+                      <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </Link>
                   </div>
                 </motion.div>
@@ -328,11 +333,77 @@ export default function Home() {
             )}
           </motion.div>
         </div>
+
+        {/* Floating Stats Section inside Hero to serve as an elegant connector */}
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 mt-16 sm:mt-20 md:mt-28">
+          <div className="relative rounded-3xl overflow-hidden bg-white/40 dark:bg-zinc-950/30 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-6 sm:p-8 md:p-10">
+            {/* Subtle radial light glow inside the stats card */}
+            <div className="absolute -right-20 -bottom-20 w-60 h-60 bg-accent/8 dark:bg-accent/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -left-20 -top-20 w-60 h-60 bg-[#FA983A]/8 dark:bg-[#FA983A]/12 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10 sm:gap-8 md:gap-12 text-center relative z-10">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-zinc-900 dark:text-white mb-1 sm:mb-2">
+                  <Counter value={30} suffix="+" />
+                </div>
+                <div className="text-zinc-500 text-[10px] sm:text-xs md:text-sm uppercase tracking-wider md:tracking-widest font-semibold">
+                  Anggota Aktif
+                </div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+              >
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-zinc-900 dark:text-white mb-1 sm:mb-2">
+                  <Counter value={25} suffix="+" />
+                </div>
+                <div className="text-zinc-500 text-[10px] sm:text-xs md:text-sm uppercase tracking-wider md:tracking-widest font-semibold">
+                  Aftermovie
+                </div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-zinc-900 dark:text-white mb-1 sm:mb-2">
+                  <Counter value={5} suffix="+" />
+                </div>
+                <div className="text-zinc-500 text-[10px] sm:text-xs md:text-sm uppercase tracking-wider md:tracking-widest font-semibold">
+                  Penghargaan
+                </div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3 }}
+              >
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-zinc-900 dark:text-white mb-1 sm:mb-2">
+                  <Counter value="15k" suffix="+" />
+                </div>
+                <div className="text-zinc-500 text-[10px] sm:text-xs md:text-sm uppercase tracking-wider md:tracking-widest font-semibold">
+                  Foto (242GB)
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-32 px-6 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <section className="pt-10 md:pt-16 pb-32 px-6 max-w-7xl mx-auto relative overflow-hidden">
+        {/* Soft colorful background blur behind the features cards */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-accent/5 dark:bg-accent/10 rounded-full blur-[120px] pointer-events-none" />
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
           {features.map((feature, index) => (
             <motion.div
               key={index}
@@ -341,17 +412,17 @@ export default function Home() {
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               className={cn(
-                "p-10 rounded-3xl border border-zinc-100 dark:border-zinc-900 hover:border-accent/30 transition-all group shadow-sm hover:shadow-xl",
+                "p-10 rounded-3xl border hover:border-accent/30 dark:hover:border-accent/40 transition-all group shadow-md hover:shadow-2xl shadow-zinc-200/5 dark:shadow-black/10",
                 feature.bg,
               )}
             >
-              <div className="mb-8 p-4 bg-white dark:bg-zinc-950 rounded-2xl w-fit group-hover:scale-110 transition-transform shadow-md">
+              <div className="mb-8 p-4 bg-white/60 dark:bg-zinc-950/60 border border-zinc-200/20 dark:border-white/10 backdrop-blur-md rounded-2xl w-fit group-hover:scale-110 transition-transform shadow-md">
                 {feature.icon}
               </div>
               <h3 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-white">
                 {feature.title}
               </h3>
-              <p className="text-zinc-500 dark:text-zinc-500 mb-8 leading-relaxed">
+              <p className="text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed">
                 {feature.description}
               </p>
               <Link
@@ -362,63 +433,6 @@ export default function Home() {
               </Link>
             </motion.div>
           ))}
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-32 bg-zinc-50 dark:bg-zinc-900/30 border-y border-zinc-100 dark:border-zinc-900">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <div className="text-5xl font-black text-zinc-900 dark:text-white mb-2">
-              <Counter value={30} suffix="+" />
-            </div>
-            <div className="text-zinc-500 text-sm uppercase tracking-widest">
-              Anggota Aktif
-            </div>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-          >
-            <div className="text-5xl font-black text-zinc-900 dark:text-white mb-2">
-              <Counter value={25} suffix="+" />
-            </div>
-            <div className="text-zinc-500 text-sm uppercase tracking-widest">
-              Aftermovie
-            </div>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="text-5xl font-black text-zinc-900 dark:text-white mb-2">
-              <Counter value={5} suffix="+" />
-            </div>
-            <div className="text-zinc-500 text-sm uppercase tracking-widest">
-              Penghargaan
-            </div>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-          >
-            <div className="text-5xl font-black text-zinc-900 dark:text-white mb-2">
-              <Counter value="15k" suffix="+" />
-            </div>
-            <div className="text-zinc-500 text-sm uppercase tracking-widest">
-              Foto (242GB)
-            </div>
-          </motion.div>
         </div>
       </section>
 

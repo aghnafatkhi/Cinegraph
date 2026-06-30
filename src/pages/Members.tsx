@@ -113,9 +113,9 @@ export default function Members() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center gap-1 mb-3"
           >
-            <span className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
+            <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
               ANGGOTA
-            </span>
+            </h1>
           </motion.div>
           <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
             Kenali lebih dekat para talenta di balik layar Cinegraph Nepal SMAN 1 Cileungsi.
@@ -202,9 +202,9 @@ export default function Members() {
 
                     {/* Member Name */}
                     <div className="space-y-1">
-                      <h3 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white capitalize group-hover:text-accent transition-colors line-clamp-2">
+                      <h2 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white capitalize group-hover:text-accent transition-colors line-clamp-2">
                         {member.name}
-                      </h3>
+                      </h2>
                     </div>
                   </div>
 
@@ -230,7 +230,7 @@ export default function Members() {
             <div className="bg-zinc-50 dark:bg-zinc-900 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Users className="w-10 h-10 text-zinc-300 dark:text-zinc-700" />
             </div>
-            <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white">Anggota tidak ditemukan</h3>
+            <h2 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white">Anggota tidak ditemukan</h2>
             <p className="text-zinc-500">Coba gunakan kata kunci pencarian lain.</p>
           </div>
         )}

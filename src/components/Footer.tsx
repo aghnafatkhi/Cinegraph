@@ -22,13 +22,13 @@ export default function Footer() {
             Ekstrakurikuler Cinematography SMAN 1 Cileungsi. Wadah kreativitas siswa dalam seni visual dan perfilman.
           </p>
             <div className="flex gap-4">
-              <a href="https://www.instagram.com/cinegraphnepal/" target="_blank" rel="noopener noreferrer" className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-accent transition-colors text-zinc-400 hover:text-white">
+              <a href="https://www.instagram.com/cinegraphnepal/" target="_blank" rel="noopener noreferrer" aria-label="Instagram Cinegraph Nepal" className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-accent transition-colors text-zinc-400 hover:text-white">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="https://www.youtube.com/@cn_nepal" target="_blank" rel="noopener noreferrer" className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-accent transition-colors text-zinc-400 hover:text-white">
+              <a href="https://www.youtube.com/@cn_nepal" target="_blank" rel="noopener noreferrer" aria-label="YouTube Cinegraph Nepal" className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-accent transition-colors text-zinc-400 hover:text-white">
                 <Youtube className="w-5 h-5" />
               </a>
-              <a href="mailto:cinegraphnepalforever@gmail.com" className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-accent transition-colors text-zinc-400 hover:text-white">
+              <a href="mailto:cinegraphnepalforever@gmail.com" aria-label="Email Cinegraph Nepal" className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-accent transition-colors text-zinc-400 hover:text-white">
                 <Mail className="w-5 h-5" />
               </a>
             </div>

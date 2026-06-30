@@ -256,9 +256,9 @@ export default function Attendance() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center gap-1 mb-3"
           >
-            <span className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
+            <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
               PRESENSI
-            </span>
+            </h1>
           </motion.div>
         </header>
 

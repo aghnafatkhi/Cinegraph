@@ -74,9 +74,9 @@ export default function Gallery() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center gap-1 mb-3"
           >
-            <span className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
+            <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
               DOKUMENTASI
-            </span>
+            </h1>
           </motion.div>
           <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed px-4">
             Kumpulan momen berharga dari berbagai acara di SMAN 1 Cileungsi yang berhasil kami abadikan.
@@ -223,9 +223,9 @@ export default function Gallery() {
                           </div>
                         </div>
                         
-                        <h3 className="text-2xl md:text-3xl font-black leading-tight text-white group-hover:text-accent transition-colors duration-500">
+                        <h2 className="text-2xl md:text-3xl font-black leading-tight text-white group-hover:text-accent transition-colors duration-500">
                           {event.title}
-                        </h3>
+                        </h2>
 
                         <div 
                           className="overflow-hidden text-center transition-all duration-500 max-h-40 opacity-100 md:max-h-0 md:opacity-0 md:group-hover:max-h-40 md:group-hover:opacity-100"
@@ -262,9 +262,9 @@ export default function Gallery() {
                           {new Date(event.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </span>
                       </div>
-                      <h3 className="text-lg md:text-3xl font-black mb-2 md:mb-4 leading-tight text-black dark:text-white group-hover:text-accent transition-colors duration-500 truncate md:whitespace-normal">
+                      <h2 className="text-lg md:text-3xl font-black mb-2 md:mb-4 leading-tight text-black dark:text-white group-hover:text-accent transition-colors duration-500 truncate md:whitespace-normal">
                         {event.title}
-                      </h3>
+                      </h2>
                       <p className="text-zinc-500 dark:text-zinc-400 text-xs md:text-sm mb-4 md:mb-6 line-clamp-2 md:line-clamp-2 leading-relaxed max-w-2xl hidden md:block">
                         {event.description || "Dokumentasi kegiatan sekolah oleh tim Cinegraph Nepal."}
                       </p>
@@ -299,7 +299,7 @@ export default function Gallery() {
           <div className="bg-zinc-50 dark:bg-zinc-900 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
             <ImageIcon className="w-10 h-10 text-zinc-300 dark:text-zinc-700" />
           </div>
-          <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white">Tidak ada hasil</h3>
+          <h2 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white">Tidak ada hasil</h2>
           <p className="text-zinc-500">Coba gunakan kata kunci pencarian yang lain.</p>
         </div>
       )}

@@ -235,9 +235,9 @@ export default function Projects() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center gap-1 mb-3"
           >
-            <span className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
+            <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
               AFTERMOVIE
-            </span>
+            </h1>
           </motion.div>
           <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed px-4">
             Kumpulan aftermovie kolaborasi tim Cinegraph Nepal SMAN 1 Cileungsi.
@@ -302,7 +302,7 @@ export default function Projects() {
                 </div>
                 <div className="p-6 md:p-8 flex flex-col flex-grow justify-between">
                   <div>
-                    <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white group-hover:text-accent transition-colors line-clamp-2">{project.title}</h3>
+                    <h2 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white group-hover:text-accent transition-colors line-clamp-2">{project.title}</h2>
                     <p className="text-zinc-500 dark:text-zinc-400 text-sm line-clamp-3 leading-relaxed">
                       {project.description || "Aftermovie acara karya tim Cinematography SMAN 1 Cileungsi."}
                     </p>
@@ -316,7 +316,7 @@ export default function Projects() {
             <div className="bg-zinc-50 dark:bg-zinc-900 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Film className="w-10 h-10 text-zinc-300 dark:text-zinc-700" />
             </div>
-            <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white">Belum ada aftermovie</h3>
+            <h2 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white">Belum ada aftermovie</h2>
             <p className="text-zinc-500">Aftermovie akan segera hadir di sini.</p>
           </div>
         )}
@@ -334,6 +334,7 @@ export default function Projects() {
           >
               <button
                 onClick={() => setSelectedProject(null)}
+                aria-label="Tutup Video"
                 className="absolute top-6 right-6 p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-accent rounded-full transition-colors z-20"
               >
                 <X className="w-5 h-5 text-zinc-900 dark:text-white" />

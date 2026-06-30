@@ -124,12 +124,14 @@ export default function Navbar() {
             <button
               onClick={toggleTheme}
               className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-accent transition-colors"
+              aria-label="Toggle Theme"
             >
               {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             </button>
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-accent dark:hover:text-white transition-colors"
+              aria-label={isOpen ? "Tutup Menu" : "Buka Menu"}
             >
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>

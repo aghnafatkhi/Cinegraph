@@ -250,16 +250,15 @@ export default function Attendance() {
   return (
     <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 font-sans transition-colors duration-300">
       <div className="max-w-4xl mx-auto">
-        <header className="mb-12 text-center">
+        <header className="mb-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-4"
+            className="flex flex-col items-center gap-1 mb-3"
           >
-            <div className="bg-accent/10 border border-accent/20 px-4 py-1 rounded-full text-accent text-xs font-bold uppercase tracking-widest">
-              Sistem Kehadiran
-            </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 dark:text-white">PRESENSI <span className="text-accent">QR CODE</span></h1>
+            <span className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
+              PRESENSI
+            </span>
           </motion.div>
         </header>
 

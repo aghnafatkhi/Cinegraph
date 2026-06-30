@@ -338,23 +338,17 @@ export default function Leaderboard() {
       className="bg-white dark:bg-zinc-950 min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
     >
       <div className="max-w-5xl mx-auto">
-        <header className="mb-12 text-center">
+        <header className="mb-8 text-center">
           <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="bg-accent/10 border border-accent/20 px-4 py-1 rounded-full text-accent text-xs font-bold uppercase tracking-widest inline-block mb-4"
+            className="flex flex-col items-center gap-1 mb-3"
           >
-            Dokumentasi & Peringkat
+            <span className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
+              EKSPLORASI
+            </span>
           </motion.div>
-          <motion.h1 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 dark:text-white mb-8"
-          >
-            EKSPLORASI <span className="text-accent">KARYA</span>
-          </motion.h1>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-8">
             {/* View Toggle */}

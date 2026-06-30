@@ -554,8 +554,15 @@ export default function Admin() {
       <div className="max-w-7xl mx-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
           <div>
-            <h1 className="text-4xl font-black tracking-tighter mb-2 text-zinc-900 dark:text-white">PANEL <span className="text-accent">ADMIN</span></h1>
-            <p className="text-zinc-500 dark:text-zinc-500">Kelola konten website Cinegraph Nepal secara langsung.</p>
+            <div className="flex flex-col gap-1 mb-2">
+              <span className="text-xs font-extrabold tracking-[0.25em] text-accent block uppercase">
+                Dashboard Pengurus
+              </span>
+              <span className="text-5xl sm:text-6xl md:text-7xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
+                PANEL ADMIN
+              </span>
+            </div>
+            <p className="text-zinc-500 dark:text-zinc-500 text-sm sm:text-base">Kelola konten website Cinegraph Nepal secara langsung.</p>
           </div>
           <div className="flex flex-wrap gap-3 md:gap-4 w-full md:w-auto justify-start md:justify-end">
             {activeTab === 'members' && (

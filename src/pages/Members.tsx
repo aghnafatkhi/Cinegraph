@@ -107,24 +107,23 @@ export default function Members() {
       className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
     >
       <div className="max-w-7xl mx-auto">
-        <header className="mb-20 text-center">
+        <header className="mb-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-4"
+            className="flex flex-col items-center gap-1 mb-3"
           >
-            <div className="bg-accent/10 border border-accent/20 px-4 py-1 rounded-full text-accent text-xs font-bold uppercase tracking-widest">
-              Tim Kreatif Kami
-            </div>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white">PORTOFOLIO <span className="text-accent">ANGGOTA</span></h1>
-            <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-lg leading-relaxed">
-              Kenali lebih dekat para talenta di balik layar Cinegraph Nepal SMAN 1 Cileungsi.
-            </p>
+            <span className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
+              ANGGOTA
+            </span>
           </motion.div>
+          <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+            Kenali lebih dekat para talenta di balik layar Cinegraph Nepal SMAN 1 Cileungsi.
+          </p>
         </header>
 
         {/* Search & Filter Bar */}
-        <div className="max-w-4xl mx-auto mb-16 space-y-8">
+        <div className="max-w-4xl mx-auto mb-8 space-y-8">
           <div className="relative group max-w-2xl mx-auto">
             <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-accent transition-colors" />
             <input

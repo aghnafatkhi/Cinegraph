@@ -229,41 +229,41 @@ export default function Projects() {
         <meta property="og:description" content="Koleksi aftermovie terbaik dari siswa SMAN 1 Cileungsi." />
       </Helmet>
       <div className="max-w-7xl mx-auto">
-        <header className="mb-12 text-center">
+        <header className="mb-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-4"
+            className="flex flex-col items-center gap-1 mb-3"
           >
-            <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-none">
+            <span className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
               AFTERMOVIE
-            </h1>
-            <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed px-4">
-              Kumpulan aftermovie kolaborasi tim Cinegraph Nepal SMAN 1 Cileungsi.
-            </p>
+            </span>
           </motion.div>
+          <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed px-4">
+            Kumpulan aftermovie kolaborasi tim Cinegraph Nepal SMAN 1 Cileungsi.
+          </p>
         </header>
 
         {/* Search & Sort Filter */}
-        <div className="flex flex-col sm:flex-row justify-center items-center gap-3.5 mb-16 max-w-2xl mx-auto w-full px-4">
+        <div className="flex flex-row justify-center items-center gap-2 mb-8 max-w-2xl mx-auto w-full px-4">
           {/* Search Bar */}
-          <div className="relative w-full sm:flex-grow">
+          <div className="relative flex-grow">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input
               type="text"
               placeholder="Cari aftermovie..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-2.5 pl-11 pr-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:border-accent transition-all h-[44px]"
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-2.5 pl-11 pr-4 text-xs sm:text-sm text-zinc-900 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:border-accent transition-all h-[44px]"
             />
           </div>
           
           {/* Sort dropdown */}
-          <div className="shrink-0 w-full sm:w-auto">
+          <div className="shrink-0">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
-              className="w-full sm:w-auto bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-2.5 px-4 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold h-[44px]"
+              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-2.5 px-3 sm:px-4 text-xs sm:text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold h-[44px]"
             >
               <option value="newest">Terbaru</option>
               <option value="oldest">Terlama</option>

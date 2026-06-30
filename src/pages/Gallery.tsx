@@ -68,21 +68,23 @@ export default function Gallery() {
         <meta property="og:description" content="Kumpulan momen berharga di SMAN 1 Cileungsi dalam lensa Cinegraph Nepal." />
       </Helmet>
       <div className="max-w-7xl mx-auto">
-        <header className="mb-12 text-center">
+        <header className="mb-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-3"
+            className="flex flex-col items-center gap-1 mb-3"
           >
-            <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 dark:text-white">DOKUMENTASI <span className="text-accent">FOTO</span></h1>
-            <p className="text-zinc-500 dark:text-zinc-400 max-w-md mx-auto text-xs md:text-sm leading-relaxed opacity-90">
-              Kumpulan momen berharga dari berbagai acara di SMAN 1 Cileungsi yang berhasil kami abadikan.
-            </p>
+            <span className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
+              DOKUMENTASI
+            </span>
           </motion.div>
+          <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed px-4">
+            Kumpulan momen berharga dari berbagai acara di SMAN 1 Cileungsi yang berhasil kami abadikan.
+          </p>
         </header>
 
         {/* Search & Filter Bar */}
-        <div className="max-w-2xl mx-auto mb-12 space-y-4">
+        <div className="max-w-2xl mx-auto mb-8 space-y-3">
           {/* Row 1: Search Bar & View Switcher */}
           <div className="flex items-center gap-3 w-full">
             <div className="relative flex-grow group">

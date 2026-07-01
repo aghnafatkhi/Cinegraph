@@ -217,11 +217,37 @@ export default function Dashboard() {
     setCropImageSrc(null);
   };
 
+  const loadSnapScript = (): Promise<void> => {
+    return new Promise((resolve) => {
+      if ((window as any).snap) {
+        resolve();
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+      script.setAttribute("data-client-key", (import.meta as any).env.VITE_MIDTRANS_CLIENT_KEY || "");
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        console.error("Failed to load Midtrans Snap script");
+        resolve();
+      };
+      document.head.appendChild(script);
+    });
+  };
+
   const handleOnlinePayment = async () => {
     if (!member || !user) return;
     
     setIsPaying(true);
     try {
+      await loadSnapScript();
+      if (!(window as any).snap) {
+        setMessage({ type: 'error', text: 'Gagal memuat layanan pembayaran Midtrans. Silakan coba lagi.' });
+        setIsPaying(false);
+        return;
+      }
+
       const response = await fetch('/api/payment/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

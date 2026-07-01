@@ -226,10 +226,10 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 w-full sm:w-auto mt-2">
               <Link
                 to="/gallery"
-                className="bg-accent hover:bg-accent/90 text-white px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl shadow-accent/20 text-sm md:text-base"
+                className="bg-accent hover:bg-accent/90 text-zinc-950 dark:text-zinc-950 px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl shadow-accent/20 text-sm md:text-base"
               >
-                <ImageIcon className="w-4 h-4 md:w-5 md:h-5" />
-                Dokumentasi
+                <ImageIcon className="w-4 h-4 md:w-5 md:h-5 text-zinc-950" />
+                <span className="text-zinc-950">Dokumentasi</span>
               </Link>
               <Link
                 to="/projects"
@@ -278,12 +278,12 @@ export default function Home() {
 
                   <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 md:p-8 text-left flex flex-col justify-end z-20">
                     <div>
-                      <span className="bg-accent text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest mb-2 inline-block shadow-md">
+                      <span className="bg-accent text-zinc-950 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest mb-2 inline-block shadow-md">
                         Terbaru
                       </span>
-                      <h3 className="text-2xl sm:text-2xl md:text-3xl lg:text-3xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] leading-tight mb-1.5 line-clamp-2">
+                      <h2 className="text-2xl sm:text-2xl md:text-3xl lg:text-3xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] leading-tight mb-1.5 line-clamp-2">
                         {heroEvents[currentSlide].title}
-                      </h3>
+                      </h2>
                       <p className="text-[10px] sm:text-xs text-zinc-300 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] font-medium mb-3 sm:mb-4">
                         {new Date(
                           heroEvents[currentSlide].date,
@@ -296,10 +296,10 @@ export default function Home() {
                     </div>
                     <Link
                       to="/gallery"
-                      className="inline-flex items-center gap-1.5 sm:gap-2 text-white bg-accent hover:bg-accent/90 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all w-fit shadow-lg hover:scale-105 active:scale-95"
+                      className="inline-flex items-center gap-1.5 sm:gap-2 text-zinc-950 bg-accent hover:bg-accent/90 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all w-fit shadow-lg hover:scale-105 active:scale-95"
                     >
                       Lihat Dokumentasi{" "}
-                      <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-950" />
                     </Link>
                   </div>
                 </motion.div>
@@ -320,14 +320,18 @@ export default function Home() {
                   <button
                     key={i}
                     onClick={() => setCurrentSlide(i)}
-                    className={cn(
-                      "w-2 h-2 rounded-full transition-all",
-                      currentSlide === i
-                        ? "bg-accent w-6"
-                        : "bg-zinc-300 dark:bg-zinc-700 hover:bg-zinc-400 dark:hover:bg-zinc-600",
-                    )}
+                    className="w-4 h-4 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
                     aria-label={`Go to slide ${i + 1}`}
-                  />
+                  >
+                    <div
+                      className={cn(
+                        "w-2.5 h-2.5 rounded-full transition-all duration-300 origin-center",
+                        currentSlide === i
+                          ? "bg-accent scale-x-[2.2]"
+                          : "bg-zinc-300 dark:bg-zinc-700 hover:bg-zinc-400 dark:hover:bg-zinc-600 scale-x-100",
+                      )}
+                    />
+                  </button>
                 ))}
               </div>
             )}
@@ -419,14 +423,15 @@ export default function Home() {
               <div className="mb-8 p-4 bg-white/60 dark:bg-zinc-950/60 border border-zinc-200/20 dark:border-white/10 backdrop-blur-md rounded-2xl w-fit group-hover:scale-110 transition-transform shadow-md">
                 {feature.icon}
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-white">
+              <h2 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-white">
                 {feature.title}
-              </h3>
+              </h2>
               <p className="text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed">
                 {feature.description}
               </p>
               <Link
                 to={feature.link}
+                aria-label={`Selengkapnya tentang ${feature.title}`}
                 className="flex items-center gap-2 text-accent font-bold group-hover:gap-4 transition-all"
               >
                 Selengkapnya <ArrowRight className="w-4 h-4" />
@@ -443,15 +448,15 @@ export default function Home() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="max-w-5xl mx-auto bg-gradient-to-br from-accent to-accent/60 rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden shadow-2xl shadow-accent/20"
+          className="max-w-5xl mx-auto bg-zinc-950 border border-zinc-900 rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden shadow-2xl shadow-accent/5"
         >
-          <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+          <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
             <Camera className="w-96 h-96 -rotate-12 -translate-x-20 -translate-y-20 text-white" />
           </div>
           <h2 className="text-4xl md:text-6xl font-black mb-8 relative z-10 text-white">
             INGIN BERGABUNG DENGAN KAMI?
           </h2>
-          <p className="text-white/80 text-lg md:text-xl mb-12 max-w-2xl mx-auto relative z-10">
+          <p className="text-zinc-300 text-lg md:text-xl mb-12 max-w-2xl mx-auto relative z-10">
             Jadilah bagian dari tim kreatif Cinegraph Nepal dan kembangkan bakat
             cinematographymu bersama kami.
           </p>
@@ -461,7 +466,7 @@ export default function Home() {
             href="https://forms.gle/tDVYctj1VceLGCPx9"
             target="_blank"
             rel="noopener noreferrer"
-            className="bg-white text-accent px-10 py-5 rounded-2xl font-black text-lg hover:bg-zinc-100 transition-all inline-block relative z-10 shadow-xl"
+            className="bg-accent text-zinc-950 px-10 py-5 rounded-2xl font-black text-lg hover:bg-accent/90 transition-all inline-block relative z-10 shadow-xl shadow-accent/20"
           >
             Daftar Sekarang
           </motion.a>

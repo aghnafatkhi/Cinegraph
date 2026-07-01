@@ -75,6 +75,25 @@ export default function Attendance() {
     }
   }, [isAdmin]);
 
+  const loadSnapScript = (): Promise<void> => {
+    return new Promise((resolve) => {
+      if ((window as any).snap) {
+        resolve();
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+      script.setAttribute("data-client-key", (import.meta as any).env.VITE_MIDTRANS_CLIENT_KEY || "");
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        console.error("Failed to load Midtrans Snap script");
+        resolve();
+      };
+      document.head.appendChild(script);
+    });
+  };
+
   const handleSaveAttendance = async (includeKas: boolean) => {
     if (!scanResult?.userId) return;
     
@@ -95,6 +114,14 @@ export default function Attendance() {
 
         if (kasMethod === 'Online') {
           setIsPaying(true);
+          await loadSnapScript();
+          if (!(window as any).snap) {
+            alert("Gagal memuat layanan pembayaran Midtrans. Silakan coba lagi.");
+            setIsPaying(false);
+            setIsSubmitting(false);
+            return;
+          }
+
           const response = await fetch('/api/payment/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

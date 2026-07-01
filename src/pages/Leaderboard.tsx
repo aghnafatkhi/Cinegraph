@@ -117,17 +117,22 @@ export default function Leaderboard() {
       updateData();
     });
 
+    let unsubUserLikes: (() => void) | null = null;
+
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (unsubUserLikes) {
+        unsubUserLikes();
+        unsubUserLikes = null;
+      }
       if (user) {
         // Re-fetch likes to update likedPhotos for the new user
         const q = query(collection(db, 'likes'), where('userId', '==', user.uid));
-        onSnapshot(q, (snapshot) => {
+        unsubUserLikes = onSnapshot(q, (snapshot) => {
           const userLikes = snapshot.docs.map(doc => doc.data().photoHash || getHash(doc.data().photoUrl));
           setLikedPhotos(userLikes);
         });
 
         // Fetch member profile
-        const memberQ = query(collection(db, 'members'), where('email', '==', user.email));
         const memberSnap = await getDocs(query(collection(db, 'members'), where('email', '==', user.email)));
         if (!memberSnap.empty) {
           setMemberProfile({ id: memberSnap.docs[0].id, ...memberSnap.docs[0].data() });
@@ -142,6 +147,7 @@ export default function Leaderboard() {
       unsubMembers();
       unsubLikes();
       unsubAuth();
+      if (unsubUserLikes) unsubUserLikes();
     };
   }, []);
 

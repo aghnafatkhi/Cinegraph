@@ -3,7 +3,8 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
-import { Play, Film, X, Info, ExternalLink, Copy, Check, Youtube, Search } from 'lucide-react';
+import { Play, Film, X, Info, ExternalLink, Copy, Check, Youtube, Search, ArrowLeft, Calendar, Share2, ChevronDown } from 'lucide-react';
+import { GridSkeleton } from '../components/Skeleton';
 
 interface Project {
   id: string;
@@ -135,6 +136,7 @@ export default function Projects() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [copied, setCopied] = useState(false);
+  const [liveYtVideos, setLiveYtVideos] = useState<Project[]>([]);
 
   const handleCopyLink = (url: string) => {
     navigator.clipboard.writeText(url);
@@ -142,22 +144,56 @@ export default function Projects() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Fetch live YouTube videos from server endpoint
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/youtube-videos')
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch YouTube videos");
+        return res.json();
+      })
+      .then((data: Project[]) => {
+        if (isMounted && Array.isArray(data)) {
+          setLiveYtVideos(data);
+        }
+      })
+      .catch(err => {
+        console.warn("Could not load live YouTube RSS feed:", err);
+      });
+    return () => { isMounted = false; };
+  }, []);
+
   useEffect(() => {
     const q = query(collection(db, 'projects'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const projectData = snapshot.docs.map(doc => ({
+      const dbProjects = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Project[];
-      
-      // Merge with default YouTube projects without duplicate video links or titles
-      const combined = [...projectData];
+
+      // Build unified list starting with live YouTube RSS videos
+      const combined: Project[] = [...liveYtVideos];
+
+      // Helper to check if a video already exists in combined list
+      const isDuplicate = (p: Project) => {
+        const id1 = getYoutubeId(p.videoUrl);
+        return combined.some(item => {
+          const id2 = getYoutubeId(item.videoUrl);
+          if (id1 && id2 && id1 === id2) return true;
+          return item.title.toLowerCase().trim() === p.title.toLowerCase().trim();
+        });
+      };
+
+      // Add database projects if not duplicate
+      dbProjects.forEach(p => {
+        if (!isDuplicate(p)) {
+          combined.push(p);
+        }
+      });
+
+      // Add preset fallback projects if not duplicate
       DEFAULT_YOUTUBE_PROJECTS.forEach(defaultProj => {
-        const alreadyExists = projectData.some(p => 
-          p.videoUrl === defaultProj.videoUrl || 
-          p.title.toLowerCase() === defaultProj.title.toLowerCase()
-        );
-        if (!alreadyExists) {
+        if (!isDuplicate(defaultProj)) {
           combined.push(defaultProj);
         }
       });
@@ -165,49 +201,42 @@ export default function Projects() {
       // Filter to keep ONLY valid YouTube links
       const youtubeOnly = combined.filter(p => getYoutubeId(p.videoUrl) !== null);
 
-      // Sort the combined list
-      if (sortBy === 'oldest') {
-        youtubeOnly.sort((a, b) => {
-          const isAYt = a.id.startsWith('yt-');
-          const isBYt = b.id.startsWith('yt-');
-          if (isAYt && !isBYt) return -1; // oldest presets first
-          if (!isAYt && isBYt) return 1;
-          
-          if (isAYt && isBYt) {
-            const indexA = DEFAULT_YOUTUBE_PROJECTS.findIndex(p => p.id === a.id);
-            const indexB = DEFAULT_YOUTUBE_PROJECTS.findIndex(p => p.id === b.id);
-            return indexB - indexA; // reverse order of presets
-          }
+      // Sort
+      youtubeOnly.sort((a, b) => {
+        const dateA = (a as any).publishedAt ? new Date((a as any).publishedAt).getTime() : 0;
+        const dateB = (b as any).publishedAt ? new Date((b as any).publishedAt).getTime() : 0;
+
+        if (sortBy === 'oldest') {
+          if (dateA > 0 && dateB > 0) return dateA - dateB;
+          if (dateA > 0) return 1;
+          if (dateB > 0) return -1;
           return a.id.localeCompare(b.id);
-        });
-      } else {
-        // newest (default) - real firebase projects first, then presets in newest-to-oldest order
-        youtubeOnly.sort((a, b) => {
-          const isAYt = a.id.startsWith('yt-');
-          const isBYt = b.id.startsWith('yt-');
-          if (isAYt && !isBYt) return 1;
-          if (!isAYt && isBYt) return -1;
-          
-          if (isAYt && isBYt) {
-            const indexA = DEFAULT_YOUTUBE_PROJECTS.findIndex(p => p.id === a.id);
-            const indexB = DEFAULT_YOUTUBE_PROJECTS.findIndex(p => p.id === b.id);
-            return indexA - indexB;
-          }
+        } else {
+          // newest
+          if (dateA > 0 && dateB > 0) return dateB - dateA;
+          if (dateA > 0) return -1;
+          if (dateB > 0) return 1;
           return b.id.localeCompare(a.id);
-        });
-      }
+        }
+      });
 
       setProjects(youtubeOnly);
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching projects:", error);
-      const defaultYt = DEFAULT_YOUTUBE_PROJECTS.filter(p => getYoutubeId(p.videoUrl) !== null);
-      setProjects(defaultYt);
+      console.error("Error fetching projects from Firestore:", error);
+      const combined = [...liveYtVideos];
+      DEFAULT_YOUTUBE_PROJECTS.forEach(d => {
+        const id1 = getYoutubeId(d.videoUrl);
+        if (!combined.some(c => getYoutubeId(c.videoUrl) === id1)) {
+          combined.push(d);
+        }
+      });
+      setProjects(combined);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [sortBy]);
+  }, [sortBy, liveYtVideos]);
 
   const filteredProjects = projects.filter(p => {
     const queryStr = searchQuery.toLowerCase();
@@ -229,53 +258,53 @@ export default function Projects() {
         <meta property="og:description" content="Koleksi aftermovie terbaik dari siswa SMAN 1 Cileungsi." />
       </Helmet>
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8 text-center">
+        <header className="mb-6 sm:mb-8 text-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-1 mb-3"
+            className="flex flex-col items-center gap-1 mb-2 sm:mb-3"
           >
-            <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
-              AFTERMOVIE
+            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-tight py-1">
+              <span className="bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent inline-block">
+                AFTERMOVIE
+              </span>
             </h1>
           </motion.div>
-          <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed px-4">
+          <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-xs sm:text-base leading-relaxed px-2">
             Kumpulan aftermovie kolaborasi tim Cinegraph Nepal SMAN 1 Cileungsi.
           </p>
         </header>
 
         {/* Search & Sort Filter */}
-        <div className="flex flex-row justify-center items-center gap-2 mb-8 max-w-2xl mx-auto w-full px-4">
+        <div className="flex flex-row justify-center items-center gap-2 mb-6 sm:mb-8 max-w-2xl mx-auto w-full">
           {/* Search Bar */}
           <div className="relative flex-grow">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <Search className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input
               type="text"
               placeholder="Cari aftermovie..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-2.5 pl-11 pr-4 text-xs sm:text-sm text-zinc-900 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:border-accent transition-all h-[44px]"
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl sm:rounded-2xl py-2.5 pl-10 sm:pl-11 pr-4 text-xs sm:text-sm text-zinc-900 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:border-accent transition-all h-[40px] sm:h-[44px]"
             />
           </div>
           
           {/* Sort dropdown */}
-          <div className="shrink-0">
+          <div className="relative shrink-0">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
-              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-2.5 px-3 sm:px-4 text-xs sm:text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold h-[44px]"
+              className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl sm:rounded-2xl py-2 pl-3 sm:pl-4 pr-8 text-xs sm:text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold h-[40px] sm:h-[44px] appearance-none"
             >
               <option value="newest">Terbaru</option>
               <option value="oldest">Terlama</option>
             </select>
+            <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-            <p className="text-zinc-500 font-medium">Memuat aftermovie...</p>
-          </div>
+          <GridSkeleton count={6} type="card" />
         ) : filteredProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredProjects.map((project, index) => (
@@ -322,27 +351,55 @@ export default function Projects() {
         )}
       </div>
 
-      {/* Video Modal */}
-      {selectedProject && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10">
-          <div
-            onClick={() => setSelectedProject(null)}
-            className="absolute inset-0 bg-black/95 backdrop-blur-md"
-          />
-          <div
-            className="relative w-full max-w-5xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] overflow-hidden shadow-2xl z-10"
-          >
-              <button
-                onClick={() => setSelectedProject(null)}
-                aria-label="Tutup Video"
-                className="absolute top-6 right-6 p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-accent rounded-full transition-colors z-20"
-              >
-                <X className="w-5 h-5 text-zinc-900 dark:text-white" />
-              </button>
+      {/* Video Detail Modal */}
+      <AnimatePresence>
+        {selectedProject && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 md:p-10">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedProject(null)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-md"
+            />
 
-              <div className="flex flex-col">
-                <div className="aspect-video bg-black relative">
-                  {/* Video Embed Logic (Simple iframe for YouTube/Drive) */}
+            {/* Modal Card Container */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="relative w-full max-w-5xl max-h-[92vh] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl z-10 flex flex-col"
+            >
+              {/* Sticky Top Bar / Back Button Header */}
+              <div className="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 py-3.5 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-b border-zinc-100 dark:border-zinc-800/80 shrink-0">
+                <button
+                  onClick={() => setSelectedProject(null)}
+                  className="flex items-center gap-2.5 px-3.5 py-2 bg-zinc-100 dark:bg-zinc-800/80 hover:bg-accent hover:text-zinc-950 text-zinc-800 dark:text-zinc-200 font-bold text-xs md:text-sm rounded-xl transition-all shadow-xs group"
+                >
+                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+                  <span>Kembali ke Daftar</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <span className="hidden sm:inline-block text-xs text-zinc-400 font-medium truncate max-w-[200px]">
+                    {selectedProject.title}
+                  </span>
+                  <button
+                    onClick={() => setSelectedProject(null)}
+                    aria-label="Tutup Detail Video"
+                    className="p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable Content Body */}
+              <div className="overflow-y-auto flex-1">
+                {/* Video Player */}
+                <div className="aspect-video w-full bg-black relative shrink-0">
                   <iframe
                     src={(() => {
                       const ytId = getYoutubeId(selectedProject.videoUrl);
@@ -356,41 +413,78 @@ export default function Projects() {
                       return url;
                     })()}
                     title={selectedProject.title}
-                    className="w-full h-full"
+                    className="w-full h-full border-0"
                     allowFullScreen
                   />
                 </div>
-                <div className="p-8 md:p-12">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                    <div>
-                      <div className="text-accent font-bold text-xs uppercase tracking-widest mb-2">{selectedProject.category}</div>
-                      <h2 className="text-3xl md:text-4xl font-black tracking-tight text-zinc-900 dark:text-white">{selectedProject.title}</h2>
+
+                {/* Video Meta & Details */}
+                <div className="p-6 sm:p-8 md:p-10">
+                  {/* Date Metadata */}
+                  {(selectedProject as any).publishedAt && (
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/80 px-3 py-1 rounded-full border border-zinc-200/60 dark:border-zinc-700/60">
+                        <Calendar className="w-3.5 h-3.5 text-accent" />
+                        {new Date((selectedProject as any).publishedAt).toLocaleDateString('id-ID', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
+                        })}
+                      </span>
                     </div>
-                    <a 
-                      href={selectedProject.videoUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-6 py-3 rounded-xl font-bold flex items-center gap-3 transition-all shrink-0"
-                    >
-                      <ExternalLink className="w-4 h-4" /> Buka di YouTube
-                    </a>
-                    <button 
-                      onClick={() => handleCopyLink(selectedProject.videoUrl)}
-                      className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 px-6 py-3 rounded-xl font-bold flex items-center gap-3 transition-all shrink-0"
-                    >
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copied ? 'Tersalin!' : 'Salin Link'}
-                    </button>
+                  )}
+
+                  {/* Title & Action Buttons Row */}
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
+                    <div className="flex-1">
+                      <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight leading-snug">
+                        {selectedProject.title}
+                      </h2>
+                      <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1.5 font-medium">
+                        Diproduksi oleh Tim Cinegraph Nepal • SMAN 1 Cileungsi
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                      <a
+                        href={selectedProject.videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 sm:flex-none px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs md:text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 hover:translate-y-[-1px] active:translate-y-0"
+                      >
+                        <Youtube className="w-4 h-4 fill-current" />
+                        <span>Buka di YouTube</span>
+                        <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                      </a>
+
+                      <button
+                        onClick={() => handleCopyLink(selectedProject.videoUrl)}
+                        className="px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold text-xs md:text-sm rounded-xl transition-all flex items-center justify-center gap-2"
+                      >
+                        {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Share2 className="w-4 h-4" />}
+                        <span>{copied ? 'Tersalin!' : 'Bagikan'}</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 mb-8" />
-                  <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed">
-                    {selectedProject.description || "Aftermovie ini merupakan hasil kolaborasi tim Cinegraph Nepal SMAN 1 Cileungsi dalam mengeksplorasi teknik sinematografi dan storytelling visual."}
-                  </p>
+
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800/80 my-6" />
+
+                  {/* Description Section */}
+                  <div>
+                    <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3 flex items-center gap-2">
+                      <Info className="w-3.5 h-3.5 text-accent" />
+                      Deskripsi Video
+                    </h3>
+                    <div className="p-4 sm:p-6 bg-zinc-50 dark:bg-zinc-900/60 rounded-2xl border border-zinc-100 dark:border-zinc-800/60 text-zinc-700 dark:text-zinc-300 text-sm md:text-base leading-relaxed whitespace-pre-line font-normal">
+                      {selectedProject.description || "Aftermovie ini merupakan hasil kolaborasi tim Cinegraph Nepal SMAN 1 Cileungsi dalam mengeksplorasi teknik sinematografi dan storytelling visual."}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         )}
+      </AnimatePresence>
     </motion.div>
   );
 }

@@ -14,3 +14,8 @@ export function getHash(str: string) {
   }
   return Math.abs(hash).toString(16);
 }
+
+export function isSamplePhoto(url?: string) {
+  if (!url) return true;
+  return url.includes('unsplash.com') || url.includes('picsum.photos') || url.trim() === '';
+}

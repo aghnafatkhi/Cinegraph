@@ -3,7 +3,8 @@ import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../firebase';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Users } from 'lucide-react';
+import { Search, Users, Sparkles, Phone, Mail, RefreshCw } from 'lucide-react';
+import { GridSkeleton } from '../components/Skeleton';
 
 const roleOrder: Record<string, number> = {
   'komisi': 1,
@@ -25,14 +26,11 @@ const getRolePriority = (role: string) => {
 };
 
 const ALL_SKILLS = [
-  'Cinematography', 
-  'Directing', 
-  'Editing', 
-  'Screenwriting', 
-  'Lighting', 
-  'Sound Design', 
-  'Production Design', 
-  'Color Grading'
+  'Fotografi',
+  'Videografi',
+  'Editing Foto',
+  'Editing Video',
+  'Directing'
 ];
 
 interface PortfolioItem {
@@ -68,8 +66,21 @@ export default function Members() {
         ...doc.data()
       })) as Member[];
       
+      // Deduplicate by email just in case there are duplicates in the DB
+      const uniqueMembersMap = new Map<string, Member>();
+      for (const m of memberData) {
+        if (m.email) {
+          if (!uniqueMembersMap.has(m.email)) {
+            uniqueMembersMap.set(m.email, m);
+          }
+        } else {
+          uniqueMembersMap.set(m.id, m);
+        }
+      }
+      const uniqueMembers = Array.from(uniqueMembersMap.values());
+      
       // Sort by role priority first, then by name
-      memberData.sort((a, b) => {
+      uniqueMembers.sort((a, b) => {
         const priorityA = getRolePriority(a.role);
         const priorityB = getRolePriority(b.role);
         
@@ -79,7 +90,7 @@ export default function Members() {
         return a.name.localeCompare(b.name);
       });
 
-      setMembers(memberData);
+      setMembers(uniqueMembers);
       setLoading(false);
     }, (error) => {
       console.error("Error fetching members:", error);
@@ -107,18 +118,20 @@ export default function Members() {
       className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
     >
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8 text-center">
+        <header className="mb-12 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-1 mb-3"
+            className="flex flex-col items-center gap-2 mb-3"
           >
-            <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
-              ANGGOTA
+            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-tight py-1">
+              <span className="bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent inline-block">
+                ANGGOTA
+              </span>
             </h1>
           </motion.div>
           <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-            Kenali lebih dekat para talenta di balik layar Cinegraph Nepal SMAN 1 Cileungsi.
+            Kenali lebih dekat para talenta & anggota baru Cinegraph Nepal SMAN 1 Cileungsi Periode 2026-2027.
           </p>
         </header>
 
@@ -142,7 +155,9 @@ export default function Members() {
 
           {/* Skills Filter */}
           <div className="flex flex-wrap justify-center gap-2">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.94 }}
               onClick={() => setSelectedSkill(null)}
               className={cn(
                 "px-4 py-2 rounded-full text-xs font-bold transition-all border",
@@ -152,10 +167,12 @@ export default function Members() {
               )}
             >
               Semua Keahlian
-            </button>
+            </motion.button>
             {ALL_SKILLS.map((skill) => (
-              <button
+              <motion.button
                 key={skill}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.94 }}
                 onClick={() => setSelectedSkill(selectedSkill === skill ? null : skill)}
                 className={cn(
                   "px-4 py-2 rounded-full text-xs font-bold transition-all border",
@@ -165,24 +182,24 @@ export default function Members() {
                 )}
               >
                 {skill}
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-            <p className="text-zinc-500 font-medium">Memuat data tim...</p>
-          </div>
+          <GridSkeleton count={8} type="member" />
         ) : filteredMembers.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredMembers.map((member) => {
               return (
-                <div
+                <motion.div
                   key={member.id}
+                  whileHover={{ y: -6, scale: 1.015 }}
+                  whileTap={{ scale: 0.975 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   onClick={() => navigate(`/member/${member.id}`)}
-                  className="group cursor-pointer rounded-3xl p-8 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/80 hover:border-accent hover:shadow-xl hover:shadow-accent/5 transition-all relative flex flex-col justify-between h-[240px] overflow-hidden"
+                  className="group cursor-pointer rounded-3xl p-8 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/80 hover:border-accent hover:shadow-xl hover:shadow-accent/10 transition-colors relative flex flex-col justify-between h-[240px] overflow-hidden"
                 >
                   {/* Decorative background circle */}
                   <div className="absolute -right-12 -bottom-12 w-40 h-40 rounded-full bg-accent/5 group-hover:bg-accent/10 transition-all duration-500" />
@@ -221,7 +238,7 @@ export default function Members() {
                       </span>
                     )}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>

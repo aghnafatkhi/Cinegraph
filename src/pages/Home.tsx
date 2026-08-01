@@ -16,8 +16,12 @@ import {
   ArrowRight,
   Calendar,
   ExternalLink,
+  X,
+  User,
+  LogIn,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
   collection,
   query,
@@ -224,20 +228,24 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 w-full sm:w-auto mt-2">
-              <Link
-                to="/gallery"
-                className="bg-accent hover:bg-accent/90 text-zinc-950 dark:text-zinc-950 px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl shadow-accent/20 text-sm md:text-base"
-              >
-                <ImageIcon className="w-4 h-4 md:w-5 md:h-5 text-zinc-950" />
-                <span className="text-zinc-950">Dokumentasi</span>
-              </Link>
-              <Link
-                to="/projects"
-                className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 border border-zinc-200 dark:border-zinc-800 shadow-lg text-sm md:text-base"
-              >
-                <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
-                Aftermovie
-              </Link>
+              <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
+                <Link
+                  to="/gallery"
+                  className="bg-accent hover:bg-accent/90 text-zinc-950 dark:text-zinc-950 px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-colors shadow-xl shadow-accent/20 text-sm md:text-base"
+                >
+                  <ImageIcon className="w-4 h-4 md:w-5 md:h-5 text-zinc-950" />
+                  <span className="text-zinc-950">Dokumentasi</span>
+                </Link>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
+                <Link
+                  to="/projects"
+                  className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-colors border border-zinc-200 dark:border-zinc-800 shadow-lg text-sm md:text-base"
+                >
+                  <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
+                  Aftermovie
+                </Link>
+              </motion.div>
             </div>
           </motion.div>
 
@@ -463,7 +471,7 @@ export default function Home() {
           <motion.a
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            href="https://forms.gle/tDVYctj1VceLGCPx9"
+            href="https://forms.gle/xGTUbdsYgyhnt5uf6"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-accent text-zinc-950 px-10 py-5 rounded-2xl font-black text-lg hover:bg-accent/90 transition-all inline-block relative z-10 shadow-xl shadow-accent/20"

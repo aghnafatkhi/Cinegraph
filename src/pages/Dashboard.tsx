@@ -3,11 +3,13 @@ import { auth, db } from '../firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, getDocs, limit, addDoc, orderBy, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Briefcase, Award, Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, Image as ImageIcon, ExternalLink, Upload, Wallet, CreditCard, Clock } from 'lucide-react';
+import { User, Briefcase, Award, Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, Image as ImageIcon, ExternalLink, Upload, Clock } from 'lucide-react';
 import ImageCropper from '../components/ImageCropper';
 import { resizeImage } from '../lib/imageUtils';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { DetailPageSkeleton } from '../components/Skeleton';
+import { isSamplePhoto } from '../lib/utils';
 
 interface Member {
   id: string;
@@ -56,9 +58,6 @@ export default function Dashboard() {
   const [voteCount, setVoteCount] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
-  const [isPaying, setIsPaying] = useState(false);
-  const [payAmount, setPayAmount] = useState('2000');
-  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -157,27 +156,6 @@ export default function Dashboard() {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (user) {
-      const q = query(
-        collection(db, 'attendance'),
-        where('userId', '==', user.uid),
-        orderBy('timestamp', 'desc')
-      );
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const history = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter((a: any) => a.uangKas);
-        setPaymentHistory(history);
-      }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'attendance');
-      });
-      
-      return () => unsubscribe();
-    }
-  }, [user]);
-
-  useEffect(() => {
     if (!authLoading && !loading && isAdmin && !member) {
       navigate('/admin');
     }
@@ -217,95 +195,10 @@ export default function Dashboard() {
     setCropImageSrc(null);
   };
 
-  const loadSnapScript = (): Promise<void> => {
-    return new Promise((resolve) => {
-      if ((window as any).snap) {
-        resolve();
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
-      script.setAttribute("data-client-key", (import.meta as any).env.VITE_MIDTRANS_CLIENT_KEY || "");
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => {
-        console.error("Failed to load Midtrans Snap script");
-        resolve();
-      };
-      document.head.appendChild(script);
-    });
-  };
-
-  const handleOnlinePayment = async () => {
-    if (!member || !user) return;
-    
-    setIsPaying(true);
-    try {
-      await loadSnapScript();
-      if (!(window as any).snap) {
-        setMessage({ type: 'error', text: 'Gagal memuat layanan pembayaran Midtrans. Silakan coba lagi.' });
-        setIsPaying(false);
-        return;
-      }
-
-      const response = await fetch('/api/payment/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: parseInt(payAmount),
-          orderId: `KAS-DASH-${Date.now()}`,
-          customerDetails: {
-            first_name: member.name,
-            email: user.email
-          }
-        })
-      });
-      
-      const data = await response.json();
-      if (data.token) {
-        (window as any).snap.pay(data.token, {
-          onSuccess: async (result: any) => {
-            // Record payment in attendance collection as "Online Payment"
-            await addDoc(collection(db, 'attendance'), {
-              userId: user.uid,
-              userName: member.name,
-              timestamp: serverTimestamp(),
-              status: 'Hadir',
-              uangKas: {
-                amount: parseInt(payAmount),
-                method: 'Online'
-              }
-            });
-            setMessage({ type: 'success', text: 'Pembayaran Online Berhasil!' });
-            setIsPaying(false);
-          },
-          onPending: (result: any) => {
-            setMessage({ type: 'error', text: 'Pembayaran tertunda. Silakan selesaikan pembayaran.' });
-            setIsPaying(false);
-          },
-          onError: (result: any) => {
-            setMessage({ type: 'error', text: 'Pembayaran gagal.' });
-            setIsPaying(false);
-          },
-          onClose: () => {
-            setIsPaying(false);
-          }
-        });
-      } else {
-        throw new Error(data.error || 'Gagal membuat transaksi');
-      }
-    } catch (error: any) {
-      console.error("Payment error:", error);
-      setMessage({ type: 'error', text: 'Gagal memproses pembayaran: ' + error.message });
-      setIsPaying(false);
-    }
-  };
-
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center gap-4 transition-colors">
-        <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-        <p className="text-zinc-500 font-medium">{authLoading ? 'Memeriksa autentikasi...' : 'Memuat dashboard...'}</p>
+      <div className="bg-white dark:bg-zinc-950 min-h-screen pt-32 pb-20 px-6 transition-colors">
+        <DetailPageSkeleton />
       </div>
     );
   }
@@ -360,12 +253,18 @@ export default function Dashboard() {
       <div className="max-w-5xl mx-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
           <div className="flex items-center gap-6">
-            <img
-              src={photoUrl || 'https://picsum.photos/seed/user/200/200'}
-              alt={member.name}
-              className="w-24 h-24 object-cover rounded-3xl border-4 border-zinc-100 dark:border-zinc-900 shadow-2xl"
-              referrerPolicy="no-referrer"
-            />
+            {isSamplePhoto(photoUrl) ? (
+              <div className="w-24 h-24 rounded-3xl border-4 border-zinc-100 dark:border-zinc-900 bg-zinc-200 dark:bg-zinc-800 shadow-2xl flex items-center justify-center text-zinc-400 dark:text-zinc-500">
+                <User className="w-12 h-12" strokeWidth={1.5} />
+              </div>
+            ) : (
+              <img
+                src={photoUrl}
+                alt={member.name}
+                className="w-24 h-24 object-cover rounded-3xl border-4 border-zinc-100 dark:border-zinc-900 shadow-2xl"
+                referrerPolicy="no-referrer"
+              />
+            )}
             <div>
               <h1 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">{member.name}</h1>
               <p className="text-accent font-bold uppercase tracking-widest text-sm">{member.role}</p>
@@ -503,79 +402,6 @@ export default function Dashboard() {
                     className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all resize-none"
                   />
                 </div>
-              </div>
-            </div>
-
-            <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-3xl">
-              <div className="flex items-center gap-3 mb-8">
-                <Wallet className="w-5 h-5 text-accent" />
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Pembayaran Uang Kas</h3>
-              </div>
-              <div className="space-y-6">
-                <div className="p-4 bg-accent/5 border border-accent/10 rounded-2xl">
-                  <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
-                    Bayar uang kas mingguan secara online melalui GoPay, ShopeePay, Transfer Bank, dll.
-                  </p>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Nominal</label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-zinc-400">Rp</span>
-                        <input
-                          type="number"
-                          value={payAmount}
-                          onChange={(e) => setPayAmount(e.target.value)}
-                          className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-zinc-900 dark:text-white font-bold focus:outline-none focus:border-accent"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleOnlinePayment}
-                      disabled={isPaying}
-                      className="w-full bg-accent hover:bg-accent/90 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-accent/20"
-                    >
-                      {isPaying ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <CreditCard className="w-5 h-5" />
-                          Bayar Online Sekarang
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-3xl">
-              <div className="flex items-center gap-3 mb-8">
-                <Clock className="w-5 h-5 text-accent" />
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Riwayat Kas</h3>
-              </div>
-              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {paymentHistory.length > 0 ? (
-                  paymentHistory.map((pay) => (
-                    <div key={pay.id} className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-zinc-900 dark:text-white">Rp {pay.uangKas.amount.toLocaleString()}</p>
-                        <p className="text-[10px] text-zinc-500">
-                          {pay.timestamp?.toDate ? pay.timestamp.toDate().toLocaleDateString() : new Date(pay.timestamp).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <span className={cn(
-                        "px-2 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-full",
-                        pay.uangKas.method === 'Online' ? "bg-blue-500/10 text-blue-500" :
-                        pay.uangKas.method === 'QRIS' ? "bg-purple-500/10 text-purple-500" :
-                        "bg-green-500/10 text-green-500"
-                      )}>
-                        {pay.uangKas.method}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center py-10 text-zinc-500 text-sm">Belum ada riwayat pembayaran.</p>
-                )}
               </div>
             </div>
 

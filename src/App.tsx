@@ -20,16 +20,21 @@ import { AuthProvider } from './context/AuthContext';
 import { HelmetProvider } from 'react-helmet-async';
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
-
-  React.useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
-
   return null;
 }
 
 function PageWrapper({ children }: { children: React.ReactNode }) {
+  React.useEffect(() => {
+    const html = document.documentElement;
+    const originalStyle = html.style.scrollBehavior;
+    html.style.scrollBehavior = 'auto';
+    window.scrollTo(0, 0);
+    const rId = requestAnimationFrame(() => {
+      html.style.scrollBehavior = originalStyle;
+    });
+    return () => cancelAnimationFrame(rId);
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

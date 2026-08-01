@@ -79,7 +79,7 @@ export default function Navbar() {
           </Link>
   
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-4 lg:gap-6">
+          <div className="hidden md:flex items-center gap-2 lg:gap-3">
             {navLinks.map((link) => (
               'isDivider' in link && link.isDivider ? (
                 <div key={link.path} className="h-4 w-[1.5px] bg-zinc-200/60 dark:bg-zinc-800/60 mx-1 lg:mx-2" />
@@ -87,54 +87,85 @@ export default function Navbar() {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={cn(
-                    'flex items-center gap-2 text-xs lg:text-sm font-medium transition-colors hover:text-accent',
-                    location.pathname === link.path 
-                      ? 'text-accent' 
-                      : 'text-zinc-600 dark:text-zinc-400'
-                  )}
+                  className="relative px-3 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition-colors flex items-center gap-2"
                 >
-                  {link.icon}
-                  {link.name}
+                  {location.pathname === link.path && (
+                    <motion.div
+                      layoutId="activeNavBackground"
+                      className="absolute inset-0 bg-accent/10 dark:bg-accent/20 rounded-xl border border-accent/20 -z-10"
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <motion.span 
+                    whileHover={{ scale: 1.05 }} 
+                    whileTap={{ scale: 0.95 }}
+                    className={cn(
+                      "flex items-center gap-1.5 transition-colors",
+                      location.pathname === link.path ? "text-accent font-black" : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                    )}
+                  >
+                    {link.icon}
+                    {link.name}
+                  </motion.span>
                 </Link>
               )
             ))}
             
-            <div className="flex items-center gap-3 pl-4 border-l border-zinc-200/60 dark:border-zinc-800/60">
-              <button
+            <div className="flex items-center gap-3 pl-3 border-l border-zinc-200/60 dark:border-zinc-800/60">
+              <motion.button
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.9, rotate: 15 }}
                 onClick={toggleTheme}
-                className="p-2 rounded-xl bg-zinc-100/60 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 hover:text-accent dark:hover:text-accent transition-all border border-zinc-200/40 dark:border-zinc-800/40 backdrop-blur-sm"
+                className="p-2.5 rounded-xl bg-zinc-100/80 dark:bg-zinc-900/80 text-zinc-600 dark:text-zinc-400 hover:text-accent dark:hover:text-accent transition-colors border border-zinc-200/50 dark:border-zinc-800/50 backdrop-blur-sm shadow-sm"
                 aria-label="Toggle Theme"
               >
-                {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              </button>
+                <motion.div
+                  key={theme}
+                  initial={{ rotate: -90, scale: 0.5, opacity: 0 }}
+                  animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                >
+                  {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                </motion.div>
+              </motion.button>
   
-              <Link
-                to={user ? (isAdmin ? '/admin' : '/dashboard') : '/login'}
-                className="bg-zinc-900/90 dark:bg-white/90 text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-4 lg:px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all border border-zinc-850 dark:border-zinc-150 backdrop-blur-sm flex-shrink-0"
-              >
-                <User className="w-4 h-4" />
-                {user ? (isAdmin ? 'Admin Panel' : 'Dashboard') : 'Login Anggota'}
-              </Link>
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.96 }}>
+                <Link
+                  to={user ? (isAdmin ? '/admin' : '/dashboard') : '/login'}
+                  className="bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-4 lg:px-5 py-2 rounded-xl text-xs lg:text-sm font-black flex items-center gap-2 transition-all border border-transparent shadow-md active:shadow-sm"
+                >
+                  <User className="w-4 h-4" />
+                  {user ? (isAdmin ? 'Admin Panel' : 'Dashboard') : 'Login Anggota'}
+                </Link>
+              </motion.div>
             </div>
           </div>
   
           {/* Mobile Toggle */}
           <div className="flex items-center gap-2 md:hidden">
-            <button
+            <motion.button
+              whileTap={{ scale: 0.85, rotate: 20 }}
               onClick={toggleTheme}
-              className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-accent transition-colors"
+              className="p-2.5 text-zinc-500 dark:text-zinc-400 hover:text-accent transition-colors"
               aria-label="Toggle Theme"
             >
-              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-            </button>
-            <button
+              <motion.div
+                key={theme}
+                initial={{ rotate: -90, scale: 0.5, opacity: 0 }}
+                animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 500, damping: 25 }}
+              >
+                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              </motion.div>
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.88 }}
               onClick={() => setIsOpen(!isOpen)}
               className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-accent dark:hover:text-white transition-colors"
               aria-label={isOpen ? "Tutup Menu" : "Buka Menu"}
             >
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>

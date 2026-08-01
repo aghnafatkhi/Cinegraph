@@ -4,15 +4,18 @@ import { collection, onSnapshot, query, orderBy, addDoc, deleteDoc, doc, updateD
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, 
-  Image as ImageIcon, Film, Users, Calendar, ExternalLink, X, Edit2, Upload, Link as LinkIcon, Download, Wallet
+  Plus, Trash2, Save, LogOut, AlertCircle, CheckCircle2, User,
+  Image as ImageIcon, Film, Users, Calendar, ExternalLink, X, Edit2, Upload, Link as LinkIcon, Download, Sparkles, RefreshCw
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { resizeImage } from '../lib/imageUtils';
 import ImageCropper from '../components/ImageCropper';
+import { Skeleton, TableRowsSkeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { INITIAL_MEMBERS_2026 } from '../data/initialMembers2026';
+import { isSamplePhoto } from '../lib/utils';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -75,7 +78,7 @@ interface AttendanceRecord {
 
 export default function Admin() {
   const { user, isAdmin, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'events' | 'projects' | 'members' | 'admins' | 'attendance' | 'kas'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'projects' | 'members' | 'admins' | 'attendance'>('events');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
@@ -148,7 +151,15 @@ export default function Admin() {
     });
 
     const unsubMembers = onSnapshot(collection(db, 'members'), (snap) => {
-      setMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Member[]);
+      const rawMembers = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Member[];
+      const uniqueMap = new Map<string, Member>();
+      for (const m of rawMembers) {
+        const key = m.email ? m.email.toLowerCase().trim() : m.id;
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, m);
+        }
+      }
+      setMembers(Array.from(uniqueMap.values()));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'members');
     });
@@ -411,6 +422,61 @@ export default function Admin() {
     }
   };
 
+  const handleSync2026Members = async () => {
+    if (!window.confirm("Apakah Anda yakin ingin MENGHAPUS SEMUA data anggota lama dan menggantinya dengan 40 Anggota Baru Periode 2026-2027?")) return;
+    setLoading(true);
+
+    try {
+      const allSnap = await getDocs(collection(db, 'members'));
+      for (const d of allSnap.docs) {
+        await deleteDoc(doc(db, 'members', d.id));
+      }
+
+      for (const m of INITIAL_MEMBERS_2026) {
+        await addDoc(collection(db, 'members'), m);
+      }
+      
+      localStorage.setItem("cinegraph_members_replaced_2026_v2", "true");
+      setMessage({ type: 'success', text: `Berhasil merombak total & memuat 40 Anggota Baru Periode 2026-2027!` });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Gagal merombak data anggota: ' + err.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  const handleCleanDuplicates = async () => {
+    if (!window.confirm("Apakah Anda yakin ingin MENGHAPUS SEMUA DATA ANGGOTA DUPLIKAT di database Firestore?")) return;
+    setLoading(true);
+
+    try {
+      const snap = await getDocs(collection(db, 'members'));
+      const seenEmails = new Set<string>();
+      let removed = 0;
+
+      for (const d of snap.docs) {
+        const data = d.data();
+        const emailKey = data.email ? data.email.toLowerCase().trim() : null;
+        if (emailKey) {
+          if (seenEmails.has(emailKey)) {
+            await deleteDoc(doc(db, 'members', d.id));
+            removed++;
+          } else {
+            seenEmails.add(emailKey);
+          }
+        }
+      }
+
+      setMessage({ type: 'success', text: `Berhasil membersihkan database! ${removed} dokumen duplikat dihapus.` });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Gagal membersihkan duplikat: ' + err.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -489,9 +555,25 @@ export default function Admin() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-        <p className="text-zinc-500 font-medium">{authLoading ? 'Memeriksa autentikasi...' : 'Memuat panel admin...'}</p>
+      <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 font-sans transition-colors duration-300">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-8">
+            <div className="space-y-2">
+              <Skeleton className="w-64 h-10 rounded-2xl" />
+              <Skeleton className="w-48 h-4 rounded-lg" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-32 h-10 rounded-xl" />
+              <Skeleton className="w-24 h-10 rounded-xl" />
+            </div>
+          </header>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="w-32 h-10 rounded-xl shrink-0" />
+            ))}
+          </div>
+          <TableRowsSkeleton rows={6} cols={5} />
+        </div>
       </div>
     );
   }
@@ -568,6 +650,20 @@ export default function Admin() {
             {activeTab === 'members' && (
               <>
                 <button
+                  onClick={handleSync2026Members}
+                  className="flex-1 md:flex-none bg-accent hover:bg-accent/90 text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-accent/20 text-xs md:text-sm"
+                >
+                  <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
+                  Muat Periode 2026-2027
+                </button>
+                <button
+                  onClick={handleCleanDuplicates}
+                  className="flex-1 md:flex-none bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-amber-500/20 text-xs md:text-sm"
+                >
+                  <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />
+                  Bersihkan Duplikat
+                </button>
+                <button
                   onClick={() => setIsResetSkillsModalOpen(true)}
                   className="flex-1 md:flex-none bg-red-600/10 hover:bg-red-600/20 text-red-600 px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-red-600/20 text-xs md:text-sm"
                 >
@@ -589,7 +685,7 @@ export default function Admin() {
                 Admin Default Aktif
               </div>
             )}
-            {activeTab !== 'admins' && activeTab !== 'attendance' && activeTab !== 'kas' && (
+            {activeTab !== 'admins' && activeTab !== 'attendance' && (
               <button
                 onClick={() => {
                   setEditingItem(null);
@@ -636,10 +732,8 @@ export default function Admin() {
             </p>
           </div>
           <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl">
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Uang Kas</p>
-            <p className="text-3xl font-black text-accent">
-              Rp {attendance.reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
-            </p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Presensi</p>
+            <p className="text-3xl font-black text-accent">{attendance.length}</p>
           </div>
         </div>
 
@@ -686,15 +780,6 @@ export default function Admin() {
             )}
           >
             <Users className="w-4 h-4 shrink-0" /> Daftar Anggota
-          </button>
-          <button
-            onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
-            className={cn(
-              "flex-1 md:flex-none px-4 md:px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center justify-center gap-2",
-              activeTab === 'kas' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-            )}
-          >
-            <Wallet className="w-4 h-4 shrink-0" /> Uang Kas
           </button>
           <button
             onClick={() => { setActiveTab('attendance'); setSearchQuery(''); }}
@@ -765,7 +850,13 @@ export default function Admin() {
 
           {activeTab === 'members' && members.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) || m.email.toLowerCase().includes(searchQuery.toLowerCase())).map(member => (
             <div key={member.id} className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 flex items-center gap-4 group shadow-sm hover:shadow-xl transition-all">
-              <img src={member.photoUrl} className="w-16 h-16 rounded-2xl object-cover border-2 border-white dark:border-zinc-800" referrerPolicy="no-referrer" />
+              {isSamplePhoto(member.photoUrl) ? (
+                <div className="w-16 h-16 rounded-2xl border-2 border-white dark:border-zinc-800 bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 dark:text-zinc-500 shrink-0">
+                  <User className="w-8 h-8" strokeWidth={1.5} />
+                </div>
+              ) : (
+                <img src={member.photoUrl} className="w-16 h-16 rounded-2xl object-cover border-2 border-white dark:border-zinc-800 shrink-0" referrerPolicy="no-referrer" />
+              )}
               <div className="flex-grow min-w-0">
                 <h3 className="font-bold truncate text-zinc-900 dark:text-white">{member.name}</h3>
                 <p className="text-zinc-500 text-xs truncate">{member.email}</p>
@@ -780,27 +871,19 @@ export default function Admin() {
           {activeTab === 'attendance' && (
             <div className="col-span-full space-y-6">
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm">
                   <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Total Kehadiran</p>
                   <p className="text-4xl font-black text-zinc-900 dark:text-white">{attendance.length}</p>
                 </div>
                 <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Total Uang Kas</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Kehadiran Hari Ini</p>
                   <p className="text-4xl font-black text-accent">
-                    Rp {attendance.reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Kas (Cash)</p>
-                  <p className="text-4xl font-black text-zinc-900 dark:text-white">
-                    Rp {attendance.reduce((sum, a) => sum + (a.uangKas?.method === 'Cash' ? a.uangKas.amount : 0), 0).toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Kas (QRIS)</p>
-                  <p className="text-4xl font-black text-zinc-900 dark:text-white">
-                    Rp {attendance.reduce((sum, a) => sum + (a.uangKas?.method === 'QRIS' ? a.uangKas.amount : 0), 0).toLocaleString()}
+                    {attendance.filter(a => {
+                      const date = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+                      const today = new Date();
+                      return date.toDateString() === today.toDateString();
+                    }).length}
                   </p>
                 </div>
               </div>
@@ -856,7 +939,6 @@ export default function Admin() {
                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Nama Anggota</th>
                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Waktu</th>
                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
-                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Uang Kas</th>
                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Aksi</th>
                       </tr>
                     </thead>
@@ -883,16 +965,6 @@ export default function Admin() {
                             {record.status}
                           </span>
                         </td>
-                        <td className="px-8 py-5">
-                          {record.uangKas ? (
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-zinc-900 dark:text-white">Rp {record.uangKas.amount.toLocaleString()}</span>
-                              <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">{record.uangKas.method}</span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-zinc-400">-</span>
-                          )}
-                        </td>
                         <td className="px-8 py-5 text-right">
                           <button 
                             onClick={() => setDeleteConfirm({ collection: 'attendance', id: record.id })}
@@ -908,100 +980,6 @@ export default function Admin() {
               </div>
             </div>
           </div>
-          )}
-
-          {activeTab === 'kas' && (
-            <div className="col-span-full space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2.5rem] shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Total Kas (Semua)</p>
-                  <p className="text-4xl font-black text-accent">
-                    Rp {attendance.reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2.5rem] shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Kas Hari Ini</p>
-                  <p className="text-2xl font-black text-accent">
-                    Rp {attendance.filter(a => {
-                      const date = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-                      const today = new Date();
-                      return date.toDateString() === today.toDateString();
-                    }).reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2.5rem] shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Cash</p>
-                  <p className="text-2xl font-black text-zinc-900 dark:text-white">
-                    Rp {attendance.filter(a => a.uangKas?.method === 'Cash').reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 rounded-[2.5rem] shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Digital (QRIS/Online)</p>
-                  <p className="text-2xl font-black text-zinc-900 dark:text-white">
-                    Rp {attendance.filter(a => a.uangKas?.method === 'QRIS' || a.uangKas?.method === 'Online').reduce((sum, a) => sum + (a.uangKas?.amount || 0), 0).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-sm">
-                <div className="px-8 py-6 border-b border-zinc-200 dark:border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-black text-lg text-zinc-900 dark:text-white">Riwayat Pembayaran</h3>
-                    <p className="text-xs text-zinc-500">Daftar transaksi uang kas dari presensi anggota.</p>
-                  </div>
-                  <button 
-                    onClick={exportAttendanceToCSV}
-                    className="w-full md:w-auto flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-6 py-3 rounded-xl text-sm font-black transition-all active:scale-95 shadow-lg"
-                  >
-                    <Download className="w-4 h-4" /> Ekspor Laporan
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Anggota</th>
-                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal</th>
-                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Metode</th>
-                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Nominal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {attendance.filter(a => a.uangKas).sort((a, b) => {
-                        const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-                        const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-                        return dateB.getTime() - dateA.getTime();
-                      }).map(record => (
-                        <tr key={record.id} className="border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 transition-colors">
-                          <td className="px-8 py-5">
-                            <p className="font-bold text-zinc-900 dark:text-white">{record.userName}</p>
-                            <p className="text-[10px] text-zinc-500">{record.userId}</p>
-                          </td>
-                          <td className="px-8 py-5">
-                            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                              {record.timestamp?.toDate ? record.timestamp.toDate().toLocaleString() : new Date(record.timestamp).toLocaleString()}
-                            </p>
-                          </td>
-                          <td className="px-8 py-5">
-                            <span className={cn(
-                              "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full",
-                              record.uangKas?.method === 'Online' ? "bg-blue-500/10 text-blue-500" :
-                              record.uangKas?.method === 'QRIS' ? "bg-purple-500/10 text-purple-500" :
-                              "bg-green-500/10 text-green-500"
-                            )}>
-                              {record.uangKas?.method}
-                            </span>
-                          </td>
-                          <td className="px-8 py-5 text-right">
-                            <p className="font-black text-zinc-900 dark:text-white">Rp {record.uangKas?.amount.toLocaleString()}</p>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
           )}
 
           {activeTab === 'admins' && users.filter(u => u.email.toLowerCase().includes(searchQuery.toLowerCase()) || (u.displayName || '').toLowerCase().includes(searchQuery.toLowerCase())).map(u => (

@@ -61,7 +61,7 @@ export default function Footer() {
         <div>
           <h4 className="text-zinc-900 dark:text-white font-bold mb-6">Jam Ekskul</h4>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            Setiap hari Senin pukul 15.30 - 17.00 WIB di Ruang Multimedia SMAN 1 Cileungsi.
+            Setiap hari Senin pukul 15.30 - 17.00 WIB di SMAN 1 Cileungsi.
           </p>
         </div>
       </div>
@@ -69,9 +69,6 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6 pt-10 border-t border-zinc-200 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-6">
         <p className="text-zinc-500 dark:text-zinc-400 text-xs text-center md:text-left">
           © {new Date().getFullYear()} Cinegraph Nepal SMAN 1 Cileungsi. All rights reserved.
-        </p>
-        <p className="text-zinc-500 dark:text-zinc-400 text-xs">
-          Dibuat dengan ❤️ oleh Tim IT Cinegraph Nepal
         </p>
       </div>
     </footer>

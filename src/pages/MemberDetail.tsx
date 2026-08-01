@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { motion } from 'motion/react';
-import { ArrowLeft, ExternalLink, Briefcase, Award, Instagram, Phone, Mail, Youtube, Video, Calendar, Camera, Heart } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Briefcase, Award, Instagram, Phone, Mail, Youtube, Video, Calendar, Camera, Heart, User } from 'lucide-react';
 import Lightbox from '../components/Lightbox';
-import { cn, getHash } from '../lib/utils';
+import { DetailPageSkeleton } from '../components/Skeleton';
+import { cn, getHash, isSamplePhoto } from '../lib/utils';
 
 interface Member {
   id: string;
@@ -125,9 +126,8 @@ export default function MemberDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-        <p className="text-zinc-500 font-medium">Memuat profil anggota...</p>
+      <div className="bg-white dark:bg-zinc-950 min-h-screen pt-32 pb-20 px-6 transition-colors duration-300">
+        <DetailPageSkeleton />
       </div>
     );
   }
@@ -167,14 +167,20 @@ export default function MemberDetail() {
               {/* Background Pattern */}
               <div className="absolute top-0 left-0 w-full h-40 bg-[#F59E0B] opacity-20"></div>
               
-              <div className="relative w-48 h-48 mb-6 z-10">
+              <div className="relative w-48 h-48 mb-6 z-10 flex items-center justify-center">
                 <div className="absolute inset-0 bg-accent rounded-full blur-2xl opacity-20" />
-                <img
-                  src={member.photoUrl}
-                  alt={member.name}
-                  className="w-full h-full object-cover rounded-full border-4 border-white dark:border-zinc-900 relative z-10 shadow-2xl"
-                  referrerPolicy="no-referrer"
-                />
+                {isSamplePhoto(member.photoUrl) ? (
+                  <div className="w-full h-full rounded-full border-4 border-white dark:border-zinc-900 bg-zinc-200 dark:bg-zinc-800 relative z-10 shadow-2xl flex items-center justify-center text-zinc-400 dark:text-zinc-500">
+                    <User className="w-24 h-24" strokeWidth={1.5} />
+                  </div>
+                ) : (
+                  <img
+                    src={member.photoUrl}
+                    alt={member.name}
+                    className="w-full h-full object-cover rounded-full border-4 border-white dark:border-zinc-900 relative z-10 shadow-2xl"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
               </div>
               
               <h1 className="text-3xl font-black mb-2 text-zinc-900 dark:text-white relative z-10 capitalize break-words w-full px-2">{member.name}</h1>

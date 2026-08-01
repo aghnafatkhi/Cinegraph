@@ -3,7 +3,8 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
-import { ExternalLink, Calendar, Search, Image as ImageIcon, Grid, List, Heart, MessageCircle, X, Send, User } from 'lucide-react';
+import { ExternalLink, Calendar, Search, Image as ImageIcon, Grid, List, Heart, MessageCircle, X, Send, User, ChevronDown } from 'lucide-react';
+import { GridSkeleton } from '../components/Skeleton';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -59,7 +60,7 @@ export default function Gallery() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
+      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-24 sm:pt-32 pb-20 px-3 sm:px-6 transition-colors duration-300"
     >
       <Helmet>
         <title>Dokumentasi - Cinegraph Nepal</title>
@@ -68,110 +69,106 @@ export default function Gallery() {
         <meta property="og:description" content="Kumpulan momen berharga di SMAN 1 Cileungsi dalam lensa Cinegraph Nepal." />
       </Helmet>
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8 text-center">
+        <header className="mb-6 sm:mb-8 text-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-1 mb-3"
+            className="flex flex-col items-center gap-1 mb-2 sm:mb-3"
           >
-            <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
-              DOKUMENTASI
+            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-tight py-1">
+              <span className="bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent inline-block">
+                DOKUMENTASI
+              </span>
             </h1>
           </motion.div>
-          <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed px-4">
+          <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto text-xs sm:text-base leading-relaxed px-2">
             Kumpulan momen berharga dari berbagai acara di SMAN 1 Cileungsi yang berhasil kami abadikan.
           </p>
         </header>
 
         {/* Search & Filter Bar */}
-        <div className="max-w-2xl mx-auto mb-8 space-y-3">
+        <div className="max-w-2xl mx-auto mb-6 sm:mb-8 space-y-2.5">
           {/* Row 1: Search Bar & View Switcher */}
-          <div className="flex items-center gap-3 w-full">
+          <div className="flex items-center gap-2 sm:gap-3 w-full">
             <div className="relative flex-grow group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 group-focus-within:text-accent w-4 h-4 transition-colors" />
+              <Search className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 group-focus-within:text-accent w-4 h-4 transition-colors" />
               <input
                 type="text"
                 placeholder="Cari acara..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-3 pl-11 pr-4 text-xs sm:text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl sm:rounded-2xl py-2.5 sm:py-3 pl-10 sm:pl-11 pr-4 text-xs sm:text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all h-[40px] sm:h-[44px]"
               />
             </div>
 
             {/* View switcher */}
-            <div className="flex bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-1 shrink-0">
+            <div className="flex bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl sm:rounded-2xl p-1 shrink-0 h-[40px] sm:h-[44px] items-center">
               <button
                 onClick={() => setViewMode('grid')}
                 className={cn(
-                  "p-2.5 rounded-xl transition-all",
-                  viewMode === 'grid' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                  "p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all h-full flex items-center justify-center",
+                  viewMode === 'grid' ? "bg-accent text-white shadow-xs" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
                 )}
                 aria-label="Grid View"
               >
-                <Grid className="w-4 h-4 md:w-5 md:h-5" />
+                <Grid className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
                 className={cn(
-                  "p-2.5 rounded-xl transition-all",
-                  viewMode === 'list' ? "bg-accent text-white" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                  "p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all h-full flex items-center justify-center",
+                  viewMode === 'list' ? "bg-accent text-white shadow-xs" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
                 )}
                 aria-label="List View"
               >
-                <List className="w-4 h-4 md:w-5 md:h-5" />
+                <List className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
 
-          {/* Row 2: Sorting and Year Filter */}
-          <div className="flex items-center justify-between sm:justify-center gap-2 sm:gap-3 w-full">
-            {/* Sort selection */}
-            <div className="shrink-0">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
-                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-2.5 px-2.5 sm:px-4 text-xs sm:text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold h-[44px]"
-              >
-                <option value="newest">Terbaru</option>
-                <option value="oldest">Terlama</option>
-              </select>
-            </div>
-
+          {/* Row 2: Year Filter & Sort Selection */}
+          <div className="flex items-center justify-between gap-2 sm:gap-3 w-full">
             {/* Year Filter */}
-            <div className="flex-grow sm:flex-grow-0 flex gap-1 sm:gap-1.5 p-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-x-auto sm:overflow-x-visible custom-scrollbar-hide h-[44px] items-center min-w-0 sm:min-w-max shrink-0 sm:shrink">
+            <div className="flex items-center gap-1 p-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl sm:rounded-2xl overflow-x-auto custom-scrollbar-hide h-[40px] sm:h-[44px] shrink min-w-0">
               {years.map((year) => (
                 <button
                   key={year}
                   onClick={() => setSelectedYear(year)}
                   className={cn(
-                    "px-2.5 py-1.5 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0",
+                    "px-3 py-1.5 sm:px-4 sm:py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0",
                     selectedYear === year 
-                      ? "bg-accent text-white shadow-md shadow-accent/10" 
+                      ? "bg-accent text-white shadow-xs" 
                       : "text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
                   )}
                 >
-                  {year === 'Semua Tahun' ? (
-                    <>
-                      <span className="sm:hidden">Semua</span>
-                      <span className="hidden sm:inline">Semua Tahun</span>
-                    </>
-                  ) : year}
+                  {year === 'Semua Tahun' ? 'Semua' : year}
                 </button>
               ))}
+            </div>
+
+            {/* Sort Selection */}
+            <div className="relative shrink-0">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
+                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl sm:rounded-2xl py-2 pl-3 sm:pl-4 pr-8 text-xs sm:text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-accent transition-all cursor-pointer font-bold h-[40px] sm:h-[44px] appearance-none"
+              >
+                <option value="newest">Terbaru</option>
+                <option value="oldest">Terlama</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-            <p className="text-zinc-500 font-medium">Memuat dokumentasi...</p>
-          </div>
+          <GridSkeleton count={6} type={viewMode === 'grid' ? 'card' : 'list'} />
         ) : (
           <div 
             className={cn(
-              "grid gap-8",
-              viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+              viewMode === 'grid' 
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" 
+                : "flex flex-col gap-2.5 sm:gap-3 md:gap-4"
             )}
           >
             {filteredEvents.map((event) => (
@@ -183,69 +180,57 @@ export default function Gallery() {
                   duration: 0.3,
                   ease: "easeOut"
                 }}
-                whileHover={{ y: -5 }}
+                whileHover={{ y: viewMode === 'grid' ? -5 : -2 }}
                 className={cn(
-                  "group bg-white dark:bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-zinc-200 dark:border-zinc-800 hover:border-accent/30 transition-all relative shadow-lg hover:shadow-2xl",
-                  viewMode === 'grid' ? "aspect-[4/5]" : "flex flex-row h-auto md:h-64 items-center md:items-stretch"
+                  "group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 hover:border-accent/40 transition-all relative shadow-xs hover:shadow-md overflow-hidden",
+                  viewMode === 'grid' 
+                    ? "rounded-[2.5rem] aspect-[4/5] shadow-lg hover:shadow-2xl" 
+                    : "rounded-xl sm:rounded-2xl md:rounded-3xl flex flex-row items-center p-2.5 sm:p-3.5 md:p-5 gap-3 sm:gap-4 md:gap-6"
                 )}
               >
-                {/* Image Section */}
-                <div className={cn(
-                  "relative overflow-hidden shrink-0",
-                  viewMode === 'grid' ? "absolute inset-0" : "w-32 h-32 md:w-80 md:h-full m-4 md:m-0 rounded-2xl md:rounded-none"
-                )}>
-                  <img
-                    src={event.coverImage}
-                    alt={event.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    referrerPolicy="no-referrer"
-                    loading="lazy"
-                  />
-                  {/* Gradient Overlay - ONLY for Grid Mode */}
-                  {viewMode === 'grid' && (
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-500" />
-                  )}
-                </div>
-                
-                {/* Content Section */}
-                <div className={cn(
-                  "relative h-full w-full min-w-0",
-                  viewMode === 'grid' ? "absolute inset-0" : "flex-grow p-4 md:p-8 flex flex-col justify-center"
-                )}>
-                  {viewMode === 'grid' ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-end p-8 md:p-12 text-center overflow-hidden">
-                      <div 
-                        className="w-full relative z-10 transition-transform duration-500"
-                      >
+                {viewMode === 'grid' ? (
+                  /* GRID MODE */
+                  <>
+                    <div className="absolute inset-0 overflow-hidden">
+                      <img
+                        src={event.coverImage}
+                        alt={event.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-500" />
+                    </div>
+
+                    <div className="relative z-10 flex flex-col items-center justify-end h-full p-6 md:p-10 text-center">
+                      <div className="w-full">
                         <div className="flex items-center justify-center gap-2 mb-2">
                           <div className="bg-accent/20 backdrop-blur-md border border-accent/30 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-accent">
                             {new Date(event.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </div>
                         </div>
-                        
-                        <h2 className="text-2xl md:text-3xl font-black leading-tight text-white group-hover:text-accent transition-colors duration-500">
+
+                        <h2 className="text-xl md:text-3xl font-black leading-tight text-white group-hover:text-accent transition-colors duration-500">
                           {event.title}
                         </h2>
 
-                        <div 
-                          className="overflow-hidden text-center transition-all duration-500 max-h-40 opacity-100 md:max-h-0 md:opacity-0 md:group-hover:max-h-40 md:group-hover:opacity-100"
-                        >
-                          <div className="pt-4">
-                            <p className="text-zinc-300 text-sm mb-6 line-clamp-2 leading-relaxed">
+                        <div className="overflow-hidden text-center transition-all duration-500 max-h-40 opacity-100 md:max-h-0 md:opacity-0 md:group-hover:max-h-40 md:group-hover:opacity-100">
+                          <div className="pt-3">
+                            <p className="text-zinc-300 text-xs sm:text-sm mb-4 line-clamp-2 leading-relaxed">
                               {event.description || "Dokumentasi kegiatan sekolah oleh tim Cinegraph Nepal."}
                             </p>
-                            
+
                             {event.googleDriveLink ? (
                               <a
                                 href={`/halaman-transisi.html?url=${encodeURIComponent(event.googleDriveLink)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 bg-accent hover:bg-white hover:text-accent text-white px-6 py-3 rounded-xl text-sm font-black transition-all active:scale-95 shadow-lg shadow-accent/20"
+                                className="inline-flex items-center gap-2 bg-accent hover:bg-white hover:text-accent text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all active:scale-95 shadow-lg shadow-accent/20"
                               >
                                 Lihat Dokumentasi <ExternalLink className="w-4 h-4" />
                               </a>
                             ) : (
-                              <div className="inline-block text-zinc-500 text-xs font-bold uppercase tracking-widest bg-white/5 backdrop-blur-md py-2 px-4 rounded-lg border border-white/10">
+                              <div className="inline-block text-zinc-400 text-[10px] font-bold uppercase tracking-widest bg-white/5 backdrop-blur-md py-1.5 px-3 rounded-lg border border-white/10">
                                 Dokumentasi Belum Tersedia
                               </div>
                             )}
@@ -253,42 +238,64 @@ export default function Gallery() {
                         </div>
                       </div>
                     </div>
-                  ) : (
-                    /* List Mode Content */
-                    <>
-                      <div className="flex items-center gap-3 mb-4">
-                        <Calendar className="w-4 h-4 text-accent" />
-                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
-                          {new Date(event.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </span>
+                  </>
+                ) : (
+                  /* LIST MODE - COMPACT & SPACE EFFICIENT FOR MOBILE */
+                  <>
+                    {/* Compact Image Thumbnail */}
+                    <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-56 md:h-36 rounded-lg sm:rounded-xl md:rounded-2xl overflow-hidden shrink-0 bg-zinc-100 dark:bg-zinc-800 relative">
+                      <img
+                        src={event.coverImage}
+                        alt={event.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                      />
+                    </div>
+
+                    {/* Content Section */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5 sm:py-1">
+                      <div>
+                        {/* Date */}
+                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-accent tracking-wider uppercase mb-0.5 sm:mb-1">
+                          <Calendar className="w-3 h-3 text-accent shrink-0" />
+                          <span>
+                            {new Date(event.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                        </div>
+
+                        {/* Title */}
+                        <h2 className="text-sm sm:text-base md:text-xl font-extrabold leading-snug text-zinc-900 dark:text-white group-hover:text-accent transition-colors line-clamp-2">
+                          {event.title}
+                        </h2>
+
+                        {/* Description (visible on sm+) */}
+                        <p className="text-zinc-500 dark:text-zinc-400 text-xs md:text-sm line-clamp-1 hidden sm:block mt-1">
+                          {event.description || "Dokumentasi kegiatan sekolah oleh tim Cinegraph Nepal."}
+                        </p>
                       </div>
-                      <h2 className="text-lg md:text-3xl font-black mb-2 md:mb-4 leading-tight text-black dark:text-white group-hover:text-accent transition-colors duration-500 truncate md:whitespace-normal">
-                        {event.title}
-                      </h2>
-                      <p className="text-zinc-500 dark:text-zinc-400 text-xs md:text-sm mb-4 md:mb-6 line-clamp-2 md:line-clamp-2 leading-relaxed max-w-2xl hidden md:block">
-                        {event.description || "Dokumentasi kegiatan sekolah oleh tim Cinegraph Nepal."}
-                      </p>
-                      
-                      <div className="flex items-center gap-3">
+
+                      {/* Action Button */}
+                      <div className="mt-1.5 sm:mt-2 flex items-center justify-between">
                         {event.googleDriveLink ? (
                           <a
                             href={`/halaman-transisi.html?url=${encodeURIComponent(event.googleDriveLink)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-fit inline-flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-4 md:px-8 py-2 md:py-3 rounded-xl text-xs md:text-sm font-black transition-all active:scale-95 shadow-lg"
+                            className="inline-flex items-center gap-1.5 px-3 py-1 sm:px-4 sm:py-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-extrabold transition-all active:scale-95 shadow-xs"
                           >
-                            <span className="hidden md:inline">Lihat Dokumentasi</span>
-                            <span className="md:hidden">Lihat</span> <ExternalLink className="w-3 h-3 md:w-4 md:h-4" />
+                            <span>Lihat Dokumentasi</span>
+                            <ExternalLink className="w-3 h-3" />
                           </a>
                         ) : (
-                          <div className="w-fit text-zinc-500 text-[10px] md:text-xs font-bold uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800 py-1 px-2 md:py-2 md:px-4 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                          <span className="text-[10px] sm:text-xs font-semibold text-zinc-400 dark:text-zinc-500 italic">
                             Belum Tersedia
-                          </div>
+                          </span>
                         )}
                       </div>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </>
+                )}
               </motion.div>
             ))}
           </div>

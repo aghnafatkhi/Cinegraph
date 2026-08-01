@@ -5,7 +5,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Trophy, Heart, LayoutGrid, List, Download, X, Maximize2, ChevronLeft, ChevronRight, MessageCircle, Send, User, Upload, Trash2 } from 'lucide-react';
-import { getHash, cn } from '../lib/utils';
+import { LeaderboardSkeleton } from '../components/Skeleton';
+import { getHash, cn, isSamplePhoto } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { resizeImage } from '../lib/imageUtils';
 
@@ -330,9 +331,14 @@ export default function Leaderboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-        <p className="text-zinc-500 font-medium">Memuat data...</p>
+      <div className="bg-white dark:bg-zinc-950 min-h-screen pt-32 pb-20 px-6 transition-colors duration-300">
+        <div className="max-w-5xl mx-auto space-y-8">
+          <header className="text-center space-y-3">
+            <div className="w-48 h-12 bg-zinc-200 dark:bg-zinc-800 rounded-2xl mx-auto animate-pulse" />
+            <div className="w-72 h-4 bg-zinc-200 dark:bg-zinc-800 rounded-lg mx-auto animate-pulse" />
+          </header>
+          <LeaderboardSkeleton />
+        </div>
       </div>
     );
   }
@@ -351,37 +357,59 @@ export default function Leaderboard() {
             transition={{ duration: 0.5 }}
             className="flex flex-col items-center gap-1 mb-3"
           >
-            <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent block leading-none font-black py-1">
-              EKSPLORASI
+            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-tight py-1">
+              <span className="bg-gradient-to-r from-accent via-[#FA983A] to-[#E55039] bg-clip-text text-transparent inline-block">
+                EKSPLORASI
+              </span>
             </h1>
           </motion.div>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-8">
             {/* View Toggle */}
-            <div className="flex justify-center gap-2 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl w-fit">
-              <button 
+            <div className="flex justify-center gap-1.5 p-1.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-fit">
+              <motion.button 
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setViewMode('feed')}
                 className={cn(
-                  "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all",
-                  viewMode === 'feed' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                  "relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-colors z-10",
+                  viewMode === 'feed' ? "text-white" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
                 )}
               >
+                {viewMode === 'feed' && (
+                  <motion.div 
+                    layoutId="leaderboardActiveTab" 
+                    className="absolute inset-0 bg-accent rounded-xl shadow-md shadow-accent/20 -z-10"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
                 <LayoutGrid className="w-4 h-4" /> Feed Foto
-              </button>
-              <button 
+              </motion.button>
+              <motion.button 
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setViewMode('leaderboard')}
                 className={cn(
-                  "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all",
-                  viewMode === 'leaderboard' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                  "relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-colors z-10",
+                  viewMode === 'leaderboard' ? "text-white" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
                 )}
               >
+                {viewMode === 'leaderboard' && (
+                  <motion.div 
+                    layoutId="leaderboardActiveTab" 
+                    className="absolute inset-0 bg-accent rounded-xl shadow-md shadow-accent/20 -z-10"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
                 <Trophy className="w-4 h-4" /> Leaderboard
-              </button>
+              </motion.button>
             </div>
 
             {/* Upload Button (Members Only) */}
             {memberProfile && (
-              <label className="cursor-pointer flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black px-6 py-3 rounded-xl font-bold text-sm hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white transition-all shadow-lg active:scale-95">
+              <motion.label 
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.95 }}
+                className="cursor-pointer flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-accent dark:hover:bg-accent hover:text-white dark:hover:text-white px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-colors shadow-lg"
+              >
                 {isUploading ? (
                   <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 ) : (
@@ -389,7 +417,7 @@ export default function Leaderboard() {
                 )}
                 Unggah Foto
                 <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
-              </label>
+              </motion.label>
             )}
           </div>
         </header>
@@ -467,18 +495,33 @@ export default function Leaderboard() {
                       <Maximize2 className="text-white w-8 h-8 scale-50 group-hover:scale-100 transition-transform duration-300" />
                     </div>
                   </button>
-                  <button 
+                  <motion.button 
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.8 }}
                     onClick={() => handleLike(item)}
                     className={cn(
-                      "absolute top-4 right-4 p-3 rounded-2xl backdrop-blur-md transition-all active:scale-90 z-10",
-                      likedPhotos.includes(item.photoHash) ? "bg-accent text-white" : "bg-white/20 text-white hover:bg-white/40"
+                      "absolute top-4 right-4 p-3 rounded-2xl backdrop-blur-md transition-all z-10 shadow-lg",
+                      likedPhotos.includes(item.photoHash) 
+                        ? "bg-accent text-white shadow-accent/30" 
+                        : "bg-black/30 text-white hover:bg-black/50 border border-white/20"
                     )}
                   >
-                    <Heart className={cn("w-6 h-6", likedPhotos.includes(item.photoHash) && "fill-current")} />
-                  </button>
+                    <motion.div
+                      animate={likedPhotos.includes(item.photoHash) ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      <Heart className={cn("w-6 h-6", likedPhotos.includes(item.photoHash) && "fill-current")} />
+                    </motion.div>
+                  </motion.button>
                   <div className="p-6 flex items-center justify-between">
                     <Link to={`/member/${item.memberId}`} className="flex items-center gap-3 min-w-0 hover:text-accent transition-colors group/member">
-                      <img src={item.memberPhoto} className="w-8 h-8 rounded-full object-cover border border-zinc-200 dark:border-zinc-800 group-hover/member:border-accent transition-colors" referrerPolicy="no-referrer" />
+                      {isSamplePhoto(item.memberPhoto) ? (
+                        <div className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 dark:text-zinc-500 group-hover/member:border-accent transition-colors shrink-0">
+                          <User className="w-4 h-4" strokeWidth={1.5} />
+                        </div>
+                      ) : (
+                        <img src={item.memberPhoto} className="w-8 h-8 rounded-full object-cover border border-zinc-200 dark:border-zinc-800 group-hover/member:border-accent transition-colors shrink-0" referrerPolicy="no-referrer" />
+                      )}
                       <p className="font-bold text-sm text-zinc-900 dark:text-white truncate group-hover/member:text-accent">{item.memberName}</p>
                     </Link>
                     <div className="flex items-center gap-1 text-zinc-400 font-bold text-sm">
@@ -572,7 +615,13 @@ export default function Leaderboard() {
                     onClick={() => setSelectedPhoto(null)}
                     className="flex items-center gap-4 group"
                   >
-                    <img src={currentSelectedPhoto.memberPhoto} className="w-12 h-12 rounded-full object-cover border-2 border-accent" referrerPolicy="no-referrer" />
+                    {isSamplePhoto(currentSelectedPhoto.memberPhoto) ? (
+                      <div className="w-12 h-12 rounded-full border-2 border-accent bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 dark:text-zinc-500 shrink-0">
+                        <User className="w-6 h-6" strokeWidth={1.5} />
+                      </div>
+                    ) : (
+                      <img src={currentSelectedPhoto.memberPhoto} className="w-12 h-12 rounded-full object-cover border-2 border-accent shrink-0" referrerPolicy="no-referrer" />
+                    )}
                     <div>
                       <p className="font-black text-white text-lg group-hover:text-accent transition-colors">{currentSelectedPhoto.memberName}</p>
                       <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest">Lihat Profil</p>

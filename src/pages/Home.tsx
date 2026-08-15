@@ -206,7 +206,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 dark:from-zinc-950 via-transparent to-transparent" />
         </motion.div>
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left: Text Content */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
@@ -347,7 +347,7 @@ export default function Home() {
         </div>
 
         {/* Floating Stats Section inside Hero to serve as an elegant connector */}
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 mt-16 sm:mt-20 md:mt-28">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 md:mt-28">
           <div className="relative rounded-3xl overflow-hidden bg-white/40 dark:bg-zinc-950/30 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-6 sm:p-8 md:p-10">
             {/* Subtle radial light glow inside the stats card */}
             <div className="absolute -right-20 -bottom-20 w-60 h-60 bg-accent/8 dark:bg-accent/15 rounded-full blur-3xl pointer-events-none" />
@@ -411,7 +411,7 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="pt-10 md:pt-16 pb-32 px-6 max-w-7xl mx-auto relative overflow-hidden">
+      <section className="pt-10 md:pt-16 pb-32 px-4 sm:px-6 max-w-7xl mx-auto relative overflow-hidden">
         {/* Soft colorful background blur behind the features cards */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-accent/5 dark:bg-accent/10 rounded-full blur-[120px] pointer-events-none" />
         
@@ -424,7 +424,7 @@ export default function Home() {
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               className={cn(
-                "p-10 rounded-3xl border hover:border-accent/30 dark:hover:border-accent/40 transition-all group shadow-md hover:shadow-2xl shadow-zinc-200/5 dark:shadow-black/10",
+                "p-6 sm:p-10 rounded-3xl border hover:border-accent/30 dark:hover:border-accent/40 transition-all group shadow-md hover:shadow-2xl shadow-zinc-200/5 dark:shadow-black/10",
                 feature.bg,
               )}
             >
@@ -450,13 +450,13 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 px-6">
+      <section className="py-20 md:py-32 px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="max-w-5xl mx-auto bg-zinc-950 border border-zinc-900 rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden shadow-2xl shadow-accent/5"
+          className="max-w-5xl mx-auto bg-zinc-950 border border-zinc-900 rounded-3xl sm:rounded-[3rem] p-6 sm:p-12 md:p-20 text-center relative overflow-hidden shadow-2xl shadow-accent/5"
         >
           <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
             <Camera className="w-96 h-96 -rotate-12 -translate-x-20 -translate-y-20 text-white" />

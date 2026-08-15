@@ -239,7 +239,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors">
+    <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-4 sm:px-6 transition-colors">
       {/* Crop Modal */}
       {cropImageSrc && (
         <ImageCropper

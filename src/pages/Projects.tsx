@@ -249,7 +249,7 @@ export default function Projects() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
+      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-4 sm:px-6 transition-colors duration-300"
     >
       <Helmet>
         <title>Aftermovie - Cinegraph Nepal</title>
@@ -329,7 +329,7 @@ export default function Projects() {
                     </div>
                   </div>
                 </div>
-                <div className="p-6 md:p-8 flex flex-col flex-grow justify-between">
+                <div className="p-5 md:p-8 flex flex-col flex-grow justify-between">
                   <div>
                     <h2 className="text-xl font-bold mb-2 text-zinc-900 dark:text-white group-hover:text-accent transition-colors line-clamp-2">{project.title}</h2>
                     <p className="text-zinc-500 dark:text-zinc-400 text-sm line-clamp-3 leading-relaxed">

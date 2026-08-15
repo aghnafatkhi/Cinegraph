@@ -311,8 +311,8 @@ export default function Gallery() {
         </div>
       )}
 
-      <section className="mt-32 max-w-4xl mx-auto">
-        <div className="bg-gradient-to-br from-accent to-accent/60 rounded-[3rem] p-12 text-center relative overflow-hidden shadow-2xl shadow-accent/20">
+      <section className="mt-32 max-w-4xl mx-auto px-4 sm:px-0">
+        <div className="bg-gradient-to-br from-accent to-accent/60 rounded-3xl sm:rounded-[3rem] p-6 sm:p-12 text-center relative overflow-hidden shadow-2xl shadow-accent/20">
           <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
              <Heart className="w-64 h-64 -rotate-12 -translate-x-10 -translate-y-10 text-white fill-current" />
           </div>

@@ -51,7 +51,7 @@ export default function Navbar() {
         scrolled ? 'translate-y-0 md:translate-y-2' : 'translate-y-0'
       )}
     >
-      <div className="w-full max-w-7xl px-6 py-3 relative isolate">
+      <div className="w-full max-w-7xl px-4 sm:px-6 py-3 relative isolate">
         <div
           className={cn(
             'absolute inset-0 transition-all duration-300 -z-10',

@@ -115,7 +115,7 @@ export default function Members() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
+      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-4 sm:px-6 transition-colors duration-300"
     >
       <div className="max-w-7xl mx-auto">
         <header className="mb-12 text-center">

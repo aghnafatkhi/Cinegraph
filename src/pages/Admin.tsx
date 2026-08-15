@@ -555,7 +555,7 @@ export default function Admin() {
 
   if (authLoading || loading) {
     return (
-      <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 font-sans transition-colors duration-300">
+      <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-4 sm:px-6 font-sans transition-colors duration-300">
         <div className="max-w-7xl mx-auto space-y-8">
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-8">
             <div className="space-y-2">
@@ -579,7 +579,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 font-sans transition-colors duration-300">
+    <div className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-4 sm:px-6 font-sans transition-colors duration-300">
       {/* Crop Modal */}
       {cropImageSrc && (
         <ImageCropper

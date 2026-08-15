@@ -146,7 +146,7 @@ export default function MemberDetail() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-6 transition-colors duration-300"
+      className="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white min-h-screen pt-32 pb-20 px-4 sm:px-6 transition-colors duration-300"
     >
       <div className="max-w-5xl mx-auto">
         <button 
@@ -163,7 +163,7 @@ export default function MemberDetail() {
             animate={{ opacity: 1, y: 0 }}
             className="md:col-span-1"
           >
-            <div className="bg-zinc-50 dark:bg-zinc-900 rounded-[3rem] p-8 flex flex-col items-center text-center border border-zinc-200 dark:border-zinc-800 shadow-xl relative overflow-hidden">
+            <div className="bg-zinc-50 dark:bg-zinc-900 rounded-3xl sm:rounded-[3rem] p-5 sm:p-8 flex flex-col items-center text-center border border-zinc-200 dark:border-zinc-800 shadow-xl relative overflow-hidden">
               {/* Background Pattern */}
               <div className="absolute top-0 left-0 w-full h-40 bg-[#F59E0B] opacity-20"></div>
               
@@ -239,7 +239,7 @@ export default function MemberDetail() {
             className="md:col-span-2 space-y-10"
           >
             {/* About Section */}
-            <div className="bg-zinc-50 dark:bg-zinc-900 rounded-[3rem] p-10 border border-zinc-200 dark:border-zinc-800 shadow-xl">
+            <div className="bg-zinc-50 dark:bg-zinc-900 rounded-3xl sm:rounded-[3rem] p-5 sm:p-8 md:p-10 border border-zinc-200 dark:border-zinc-800 shadow-xl">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-3 bg-accent/10 rounded-2xl text-accent">
                   <Award className="w-6 h-6" />
@@ -278,7 +278,7 @@ export default function MemberDetail() {
 
             {/* Featured Photos Section */}
             {member.featuredPhotos && member.featuredPhotos.length > 0 && (
-              <div className="bg-zinc-50 dark:bg-zinc-900 rounded-[3rem] p-10 border border-zinc-200 dark:border-zinc-800 shadow-xl">
+              <div className="bg-zinc-50 dark:bg-zinc-900 rounded-3xl sm:rounded-[3rem] p-5 sm:p-8 md:p-10 border border-zinc-200 dark:border-zinc-800 shadow-xl">
                 <div className="flex items-center gap-3 mb-8">
                   <div className="p-3 bg-accent/10 rounded-2xl text-accent">
                     <Camera className="w-6 h-6" />
